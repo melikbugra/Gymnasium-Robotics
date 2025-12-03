@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gymnasium-robotics"
+version = "1.4.1"
 description = "RL Robotics environments with Gymnasium API."
 readme = "README.md"
 requires-python = ">= 3.10"
@@ -98,3 +99,8 @@ reportMissingImports = "none"
 reportUnboundVariable = "warning"
 
 reportGeneralTypeIssues = "none"  # -> commented out raises 489 errors
+
+[dependency-groups]
+dev = [
+    "ipykernel (>=7.1.0,<8.0.0)"
+]

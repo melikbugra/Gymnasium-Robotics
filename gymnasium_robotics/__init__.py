@@ -66,6 +66,13 @@ def register_robotics_envs():
         )
 
         register(
+            id=f"FetchAssembly{suffix}-v1",
+            entry_point="gymnasium_robotics.envs.fetch.assembly:MujocoFetchAssemblyEnv",
+            kwargs=kwargs,
+            max_episode_steps=50,
+        )
+
+        register(
             id=f"FetchPush{suffix}-v1",
             entry_point="gymnasium_robotics.envs.fetch.push:MujocoPyFetchPushEnv",
             kwargs=kwargs,
