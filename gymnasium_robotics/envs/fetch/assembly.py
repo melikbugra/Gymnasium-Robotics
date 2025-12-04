@@ -186,9 +186,13 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
         else:
             reward = -d
 
-        # Add grip bonus if info contains grip information
+        # Add grip bonus only for dense reward
         # This is computed in step() and passed via info dict
-        if isinstance(info, dict) and info.get("is_grasped", False):
+        if (
+            self.reward_type == "dense"
+            and isinstance(info, dict)
+            and info.get("is_grasped", False)
+        ):
             reward = reward + self.grip_reward
 
         return reward
