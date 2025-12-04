@@ -263,30 +263,30 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
 
         # Assembly box position (x, y) = (1.3, 0.9)
         # Box is 0.40m x 0.40m, so front edge is at y = 0.70
-        # Prism should spawn in front of the box with clearance for gripper
+        # Gripper starts at approximately (1.37, 0.75)
+        # Gripper needs ~8cm clearance to grasp prism without hitting box
         box_front_edge = 0.70  # y = 0.70
-        min_clearance = 0.10  # Minimum clearance from box edge for robot gripper
+        min_clearance = 0.10  # 10cm clearance from box edge for gripper access
         max_y = box_front_edge - min_clearance  # y = 0.60
 
         # Randomize start position of object in front of the box
         if self.has_object:
-            # Spawn area centered lower to avoid box
-            # Gripper is at ~(1.34, 0.75), but we need prism at y < 0.60
-            spawn_center = np.array([1.34, 0.50])  # Lower spawn center
+            # Spawn prism close to gripper but with clearance from box
+            # Gripper starts at ~(1.37, 0.75)
+            spawn_center = np.array([1.37, 0.55])  # y=0.55, away from box
             object_xpos = spawn_center.copy()
             max_attempts = 100
             for _ in range(max_attempts):
-                # Sample random position around spawn center
+                # Small random offset
                 object_xpos = spawn_center + self.np_random.uniform(
-                    -self.obj_range, self.obj_range, size=2
+                    -0.05,
+                    0.05,
+                    size=2,  # ±5cm variation
                 )
-                # Check if on table (table is ~[1.05, 1.55] x [0.40, 1.10])
-                on_table = (
-                    1.10 < object_xpos[0] < 1.50 and 0.42 < object_xpos[1] < max_y
-                )
-
-                if on_table:
-                    break
+                # Clamp to valid area (y between 0.50 and 0.60)
+                object_xpos[0] = np.clip(object_xpos[0], 1.25, 1.50)
+                object_xpos[1] = np.clip(object_xpos[1], 0.50, max_y)
+                break  # Always valid after clamping
 
             object_qpos = self._utils.get_joint_qpos(
                 self.model, self.data, "object0:joint"
