@@ -257,28 +257,31 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
         if self.model.na != 0:
             self.data.act[:] = None
 
-        # Assembly box position (x, y) = (1.3, 0.9), size ~0.1m
-        # Prism should not spawn inside or too close to the box
-        box_x, box_y = 1.3, 0.9
-        box_margin = 0.12  # Keep prism at least this far from box center
+        # Assembly box position (x, y) = (1.3, 0.9)
+        # Box is 0.40m x 0.40m, so front edge is at y = 0.70
+        # Prism should spawn in front of the box with clearance for gripper
+        box_front_edge = 0.70  # y = 0.70
+        min_clearance = 0.10  # Minimum clearance from box edge for robot gripper
+        max_y = box_front_edge - min_clearance  # y = 0.60
 
-        # Randomize start position of object, avoiding the box area
+        # Randomize start position of object in front of the box
         if self.has_object:
-            object_xpos = self.initial_gripper_xpos[:2].copy()
+            # Spawn area centered lower to avoid box
+            # Gripper is at ~(1.34, 0.75), but we need prism at y < 0.60
+            spawn_center = np.array([1.34, 0.50])  # Lower spawn center
+            object_xpos = spawn_center.copy()
             max_attempts = 100
             for _ in range(max_attempts):
-                # Sample random position
-                object_xpos = self.initial_gripper_xpos[:2] + self.np_random.uniform(
+                # Sample random position around spawn center
+                object_xpos = spawn_center + self.np_random.uniform(
                     -self.obj_range, self.obj_range, size=2
                 )
-                # Check if too close to gripper
-                dist_to_gripper = np.linalg.norm(
-                    object_xpos - self.initial_gripper_xpos[:2]
+                # Check if on table (table is ~[1.05, 1.55] x [0.40, 1.10])
+                on_table = (
+                    1.10 < object_xpos[0] < 1.50 and 0.42 < object_xpos[1] < max_y
                 )
-                # Check if too close to box
-                dist_to_box = np.linalg.norm(object_xpos - np.array([box_x, box_y]))
 
-                if dist_to_gripper >= 0.1 and dist_to_box >= box_margin:
+                if on_table:
                     break
 
             object_qpos = self._utils.get_joint_qpos(
