@@ -169,6 +169,70 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
         )
         EzPickle.__init__(self, reward_type=reward_type, **kwargs)
 
+        # Grip reward bonus (small enough not to dominate, large enough to matter)
+        self.grip_reward = 0.1
+
+    def compute_reward(self, achieved_goal, goal, info):
+        """Compute reward with optional grip bonus.
+
+        The grip bonus encourages the robot to grasp the prism, helping it learn
+        that grasping is a necessary step toward the goal.
+        """
+        # Base reward: distance to goal
+        d = np.linalg.norm(achieved_goal - goal, axis=-1)
+
+        if self.reward_type == "sparse":
+            reward = -(d > self.distance_threshold).astype(np.float32)
+        else:
+            reward = -d
+
+        # Add grip bonus if info contains grip information
+        # This is computed in step() and passed via info dict
+        if isinstance(info, dict) and info.get("is_grasped", False):
+            reward = reward + self.grip_reward
+
+        return reward
+
+    def _is_grasped(self):
+        """Check if the robot is currently grasping the prism."""
+        obs = self._get_obs()
+
+        # Get gripper finger positions (from observation)
+        # obs['observation'][9:11] are the gripper finger joint positions
+        gripper_state = obs["observation"][9:11]
+        gripper_opening = gripper_state[0] + gripper_state[1]
+
+        # Get relative position of prism to gripper
+        # obs['observation'][6:9] is relative position
+        object_rel_pos = obs["observation"][6:9]
+        dist_to_gripper = np.linalg.norm(object_rel_pos)
+
+        # Get prism z position - must be lifted off the table
+        prism_z = obs["observation"][5]  # object z position
+        lifted = prism_z > 0.44  # Table is at ~0.42
+
+        # Grasped if: gripper is closed, prism is close, and prism is lifted
+        is_grasped = (
+            gripper_opening < 0.04  # Gripper closed (max open ~0.1)
+            and dist_to_gripper < 0.05  # Prism close to gripper
+            and lifted  # Prism is lifted
+        )
+
+        return is_grasped
+
+    def step(self, action):
+        """Override step to include grip information in info dict."""
+        obs, reward, terminated, truncated, info = super().step(action)
+
+        # Check if grasped and add to info
+        is_grasped = self._is_grasped()
+        info["is_grasped"] = is_grasped
+
+        # Recompute reward with grip bonus
+        reward = self.compute_reward(obs["achieved_goal"], self.goal, info)
+
+        return obs, reward, terminated, truncated, info
+
     def _sample_goal(self):
         """Fixed goal position inside the assembly box.
 
