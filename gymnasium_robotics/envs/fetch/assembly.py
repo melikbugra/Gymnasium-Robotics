@@ -252,7 +252,7 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
         pass
 
     def _reset_sim(self):
-        """Reset simulation and randomize prism position, avoiding the assembly box area."""
+        """Reset simulation and randomize prism position."""
         self._mujoco.mj_resetData(self.model, self.data)
 
         self.data.time = self.initial_time
@@ -261,38 +261,45 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
         if self.model.na != 0:
             self.data.act[:] = None
 
-        # Assembly box position (x, y) = (1.3, 0.9)
-        # Box is 0.40m x 0.40m, so front edge is at y = 0.70
-        # Gripper starts at approximately (1.37, 0.75)
-        # Gripper needs ~8cm clearance to grasp prism without hitting box
-        box_front_edge = 0.70  # y = 0.70
-        min_clearance = 0.10  # 10cm clearance from box edge for gripper access
-        max_y = box_front_edge - min_clearance  # y = 0.60
+        # Assembly box: center (1.3, 0.9), size 0.40m x 0.40m x 0.20m
+        # Box edges: x=[1.10, 1.50], y=[0.70, 1.10]
+        # Box top surface Z = 0.50 + 0.10 = 0.60
+        # Prism half-height = 0.03, so prism center on top = 0.60 + 0.03 = 0.63
+        box_center = np.array([1.3, 0.9])
+        box_half_size = 0.20  # Half of 0.40m
+        box_top_z = 0.63  # Prism center when sitting on top of box
 
-        # Randomize start position of object in front of the box
+        # Randomize start position of object
         if self.has_object:
-            # Spawn prism close to gripper but with clearance from box
-            # Gripper starts at ~(1.37, 0.75)
-            spawn_center = np.array([1.37, 0.55])  # y=0.55, away from box
-            object_xpos = spawn_center.copy()
-            max_attempts = 100
-            for _ in range(max_attempts):
-                # Small random offset
-                object_xpos = spawn_center + self.np_random.uniform(
-                    -0.05,
-                    0.05,
-                    size=2,  # ±5cm variation
+            # 50% chance: spawn on table (in front of box)
+            # 50% chance: spawn on top of box
+            spawn_on_box = self.np_random.random() < 0.5
+
+            if spawn_on_box:
+                # Spawn on top of the box (anywhere on top surface)
+                object_xpos = box_center + self.np_random.uniform(
+                    -0.12,
+                    0.12,
+                    size=2,  # Stay away from edges
                 )
-                # Clamp to valid area (y between 0.50 and 0.60)
-                object_xpos[0] = np.clip(object_xpos[0], 1.25, 1.50)
-                object_xpos[1] = np.clip(object_xpos[1], 0.50, max_y)
-                break  # Always valid after clamping
+                object_z = box_top_z
+            else:
+                # Spawn on table, but with clearance from box
+                # Valid area: in front of box (y < 0.60) with 10cm clearance
+                spawn_center = np.array([1.37, 0.55])
+                object_xpos = spawn_center + self.np_random.uniform(-0.08, 0.08, size=2)
+                # Clamp to valid table area (away from box)
+                object_xpos[0] = np.clip(object_xpos[0], 1.20, 1.50)
+                object_xpos[1] = np.clip(object_xpos[1], 0.45, 0.60)
+                object_z = None  # Will use default from qpos
 
             object_qpos = self._utils.get_joint_qpos(
                 self.model, self.data, "object0:joint"
             )
             assert object_qpos.shape == (7,)
             object_qpos[:2] = object_xpos
+            if object_z is not None:
+                object_qpos[2] = object_z
             self._utils.set_joint_qpos(
                 self.model, self.data, "object0:joint", object_qpos
             )
