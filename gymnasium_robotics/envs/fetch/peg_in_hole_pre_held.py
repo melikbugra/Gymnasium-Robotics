@@ -172,7 +172,7 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
             target_offset=0.0,
             obj_range=0.0,  # No randomization - peg starts in grasp
             target_range=0.0,  # No randomization for target - fixed hole position
-            distance_threshold=0.01,  # 1cm - same as FetchPegInHole
+            distance_threshold=0.005,  # 5mm - tight threshold for insertion
             initial_qpos=initial_qpos,
             reward_type=reward_type,
             **kwargs,
@@ -180,8 +180,9 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         EzPickle.__init__(self, reward_type=reward_type, **kwargs)
 
         # Target gripper position (closed to hold peg)
-        # Peg is 2cm wide (1cm half-size), gripper closes to ~0.5-1cm to grip firmly
-        self.target_gripper_pos = 0.005  # Very tightly closed to grip peg securely
+        # Peg is 2cm wide (1cm half-size = 0.01m), gripper must compress into peg
+        # For physics-based grip, fingers need to squeeze peg tightly
+        self.target_gripper_pos = 0.0  # Fully closed - maximum grip force
 
         # Peg-in-hole specific parameters (no grip reward since always grasped)
         self.orientation_weight = 0.5  # Weight for orientation penalty in dense reward
@@ -229,37 +230,26 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         return tilt_error
 
     def _step_callback(self):
-        """Override to force gripper to stay closed AND sync peg position.
+        """Override to keep gripper closed - pure physics-based gripping.
 
-        This is called after each simulation step. We:
-        1. Keep gripper closed
-        2. Manually sync peg position to gripper (kinematic constraint)
+        The gripper fingers physically hold the peg through contact forces and friction.
+        No kinematic constraints - all physics and collision detection fully active.
         """
-        # Force gripper fingers to stay at closed position
-        self._utils.set_joint_qpos(
-            self.model, self.data, "robot0:l_gripper_finger_joint", self.target_gripper_pos
-        )
-        self._utils.set_joint_qpos(
-            self.model, self.data, "robot0:r_gripper_finger_joint", self.target_gripper_pos
-        )
+        # Set gripper actuator control to maintain closed position
+        if hasattr(self, 'data') and hasattr(self.data, 'ctrl'):
+            try:
+                l_finger_idx = self._model_names.actuator_name2id["robot0:l_gripper_finger_joint"]
+                r_finger_idx = self._model_names.actuator_name2id["robot0:r_gripper_finger_joint"]
 
-        # Manually sync peg to gripper position (kinematic weld)
-        gripper_pos = self._utils.get_site_xpos(self.model, self.data, "robot0:grip")
-        gripper_mat = self._utils.get_site_xmat(self.model, self.data, "robot0:grip")
+                # Apply strong closing force to grip peg
+                self.data.ctrl[l_finger_idx] = self.target_gripper_pos
+                self.data.ctrl[r_finger_idx] = self.target_gripper_pos
+            except (KeyError, AttributeError):
+                pass
 
-        peg_qpos = self._utils.get_joint_qpos(self.model, self.data, "object0:joint")
-        # Position: 2cm below grip site
-        peg_qpos[:3] = gripper_pos + np.array([0.0, 0.0, -0.02])
-        # Orientation: match gripper orientation (upright)
-        peg_qpos[3:] = [1.0, 0.0, 0.0, 0.0]  # Keep vertical
-        self._utils.set_joint_qpos(self.model, self.data, "object0:joint", peg_qpos)
-
-        # Zero out peg velocity (it's kinematically constrained)
-        peg_qvel = self._utils.get_joint_qvel(self.model, self.data, "object0:joint")
-        peg_qvel[:] = 0.0
-        self._utils.set_joint_qvel(self.model, self.data, "object0:joint", peg_qvel)
-
-        self._mujoco.mj_forward(self.model, self.data)
+        # NO kinematic weld, NO position override
+        # Peg is held purely by gripper contact forces and friction
+        # All collisions (peg-gripper AND peg-wall) are computed by MuJoCo physics
 
     def _set_action(self, action):
         """Override to ignore gripper action (action[3]).
@@ -289,13 +279,34 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
 
         return obs, reward, terminated, truncated, info
 
-    def _sample_goal(self):
-        """Fixed goal position at hole center.
+    def _get_obs(self):
+        """Override to use peg TIP position as achieved_goal, not peg center.
 
-        The hole plate is at (1.3, 0.9, 0.42), and the goal is at the hole entrance.
-        The peg center should reach (1.3, 0.9, 0.45) to be considered inserted.
+        The peg is 8cm tall (half-size 4cm). The peg center is positioned 2cm below
+        gripper. So peg tip is 4cm below peg center = 6cm below gripper.
+        This ensures the policy controls the peg tip position for precise insertion.
         """
-        goal = np.array([1.3, 0.9, 0.45])
+        # Get base observation (uses peg CENTER as achieved_goal)
+        obs_dict = super()._get_obs()
+
+        # Replace achieved_goal with peg TIP position instead of peg CENTER
+        # Peg center is at obs_dict["achieved_goal"]
+        # Peg tip is 4cm (0.04m) below peg center (half-height)
+        peg_center = obs_dict["achieved_goal"]
+        peg_tip = peg_center.copy()
+        peg_tip[2] -= 0.04  # Subtract half-height to get tip position
+
+        obs_dict["achieved_goal"] = peg_tip
+        return obs_dict
+
+    def _sample_goal(self):
+        """Fixed goal position inside the hole.
+
+        The hole plate is at (1.3, 0.95, 0.42), hole is 10cm deep.
+        Goal is for peg TIP to reach 5cm inside the hole (middle depth).
+        Hole top at Z=0.52, goal at Z=0.47 (5cm inside).
+        """
+        goal = np.array([1.3, 0.95, 0.47])
         return goal.copy()
 
     def _render_callback(self):
