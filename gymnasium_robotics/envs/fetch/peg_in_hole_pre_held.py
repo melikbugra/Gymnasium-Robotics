@@ -180,7 +180,8 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         EzPickle.__init__(self, reward_type=reward_type, **kwargs)
 
         # Target gripper position (closed to hold peg)
-        self.target_gripper_pos = 0.02  # Closed enough to hold peg
+        # Peg is 2cm wide (1cm half-size), gripper closes to ~0.5-1cm to grip firmly
+        self.target_gripper_pos = 0.005  # Very tightly closed to grip peg securely
 
         # Peg-in-hole specific parameters (no grip reward since always grasped)
         self.orientation_weight = 0.5  # Weight for orientation penalty in dense reward
@@ -227,14 +228,47 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
 
         return tilt_error
 
-    def _set_action(self, action):
-        """Override to force gripper to stay closed (ignoring action[3])."""
-        # Create modified action with gripper forced closed
-        action_with_closed_gripper = action.copy()
-        action_with_closed_gripper[3] = -1.0  # Force close (negative = close)
+    def _step_callback(self):
+        """Override to force gripper to stay closed AND sync peg position.
 
-        # Call parent's _set_action with modified action
-        super()._set_action(action_with_closed_gripper)
+        This is called after each simulation step. We:
+        1. Keep gripper closed
+        2. Manually sync peg position to gripper (kinematic constraint)
+        """
+        # Force gripper fingers to stay at closed position
+        self._utils.set_joint_qpos(
+            self.model, self.data, "robot0:l_gripper_finger_joint", self.target_gripper_pos
+        )
+        self._utils.set_joint_qpos(
+            self.model, self.data, "robot0:r_gripper_finger_joint", self.target_gripper_pos
+        )
+
+        # Manually sync peg to gripper position (kinematic weld)
+        gripper_pos = self._utils.get_site_xpos(self.model, self.data, "robot0:grip")
+        gripper_mat = self._utils.get_site_xmat(self.model, self.data, "robot0:grip")
+
+        peg_qpos = self._utils.get_joint_qpos(self.model, self.data, "object0:joint")
+        # Position: 2cm below grip site
+        peg_qpos[:3] = gripper_pos + np.array([0.0, 0.0, -0.02])
+        # Orientation: match gripper orientation (upright)
+        peg_qpos[3:] = [1.0, 0.0, 0.0, 0.0]  # Keep vertical
+        self._utils.set_joint_qpos(self.model, self.data, "object0:joint", peg_qpos)
+
+        # Zero out peg velocity (it's kinematically constrained)
+        peg_qvel = self._utils.get_joint_qvel(self.model, self.data, "object0:joint")
+        peg_qvel[:] = 0.0
+        self._utils.set_joint_qvel(self.model, self.data, "object0:joint", peg_qvel)
+
+        self._mujoco.mj_forward(self.model, self.data)
+
+    def _set_action(self, action):
+        """Override to ignore gripper action (action[3]).
+
+        The gripper stays closed via _step_callback(), so action[3] is ignored.
+        """
+        # Gripper action is ignored - just pass action through
+        # The _step_callback() will enforce closed gripper
+        super()._set_action(action)
 
     def step(self, action):
         """Override step to include orientation information in info dict.
@@ -270,10 +304,7 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         pass
 
     def _reset_sim(self):
-        """Reset simulation.
-
-        The peg position is not randomized since it's welded to the gripper.
-        """
+        """Reset simulation and position peg in gripper's grasp."""
         self._mujoco.mj_resetData(self.model, self.data)
 
         self.data.time = self.initial_time
@@ -282,9 +313,38 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         if self.model.na != 0:
             self.data.act[:] = None
 
-        # Peg is welded to gripper - no randomization needed
-        # The equality constraint in XML keeps it attached
+        # Close gripper fingers to hold the peg
+        # Set gripper joint positions to closed state BEFORE forward
+        gripper_target = self.target_gripper_pos
+        self._utils.set_joint_qpos(
+            self.model, self.data, "robot0:l_gripper_finger_joint", gripper_target
+        )
+        self._utils.set_joint_qpos(
+            self.model, self.data, "robot0:r_gripper_finger_joint", gripper_target
+        )
 
+        # Need to do a forward pass to update site positions
+        self._mujoco.mj_forward(self.model, self.data)
+
+        # NOW get gripper position and place peg
+        if self.has_object:
+            # Get gripper position (after forward pass)
+            gripper_pos = self._utils.get_site_xpos(self.model, self.data, "robot0:grip")
+
+            # Set peg position to be in the gripper
+            peg_qpos = self._utils.get_joint_qpos(self.model, self.data, "object0:joint")
+            assert peg_qpos.shape == (7,)
+
+            # Position: gripper position with offset
+            # Peg is 8cm tall (half-size 4cm). Place peg center 2cm below grip site
+            # so gripper fingers hold the TOP THIRD of the peg (better leverage)
+            peg_qpos[:3] = gripper_pos + np.array([0.0, 0.0, -0.02])
+            # Orientation: upright (vertical)
+            peg_qpos[3:] = [1.0, 0.0, 0.0, 0.0]
+
+            self._utils.set_joint_qpos(self.model, self.data, "object0:joint", peg_qpos)
+
+        # Final forward pass with peg in position
         self._mujoco.mj_forward(self.model, self.data)
         return True
 

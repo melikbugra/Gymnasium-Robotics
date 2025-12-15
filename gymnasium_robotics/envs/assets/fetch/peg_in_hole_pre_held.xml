@@ -10,7 +10,8 @@
 	<worldbody>
 		<geom name="floor0" pos="0.8 0.75 0" size="0.85 0.7 1" type="plane" condim="3" material="floor_mat"></geom>
 		<body name="floor0" pos="0.8 0.75 0">
-			<site name="target0" pos="0 0 0.5" size="0.02 0.02 0.02" rgba="1 0 0 1" type="sphere"></site>
+			<!-- Target marker hidden for pre-held version (goal is at hole center) -->
+			<site name="target0" pos="0 0 0.5" size="0.02 0.02 0.02" rgba="1 0 0 0" type="sphere"></site>
 		</body>
 
 		<include file="robot.xml"></include>
@@ -21,10 +22,11 @@
 
 		<!-- Square Peg object - 2cm × 2cm × 8cm -->
 		<!-- Pre-held: starts in gripper's position, held by closed gripper -->
+		<!-- Mass reduced to 0.05kg for easier gripping -->
 		<body name="object0" pos="1.3419 0.7491 0.515">
 			<joint name="object0:joint" type="free" damping="0.01"></joint>
 			<!-- Square cross-section peg (half-sizes: 1cm × 1cm × 4cm) -->
-			<geom name="object0" type="box" size="0.01 0.01 0.04" mass="0.3" rgba="0.2 0.6 0.85 1" condim="4" friction="1 0.5 0.5" margin="0.001" solimp="0.99 0.99 0.01" solref="0.01 1"></geom>
+			<geom name="object0" type="box" size="0.01 0.01 0.04" mass="0.05" rgba="0.2 0.6 0.85 1" condim="4" friction="2.0 1.0 1.0" margin="0.001" solimp="0.99 0.99 0.01" solref="0.01 1"></geom>
 			<site name="object0" pos="0 0 0" size="0.01 0.01 0.04" rgba="0.2 0.6 0.85 0.3" type="box"></site>
 		</body>
 
