@@ -1,2 +1,2 @@
 from gymnasium_robotics.envs.fetch.fetch_env import MujocoFetchEnv, MujocoPyFetchEnv
-from gymnasium_robotics.envs.fetch.assembly import MujocoFetchAssemblyEnv, MujocoPyFetchAssemblyEnv
+from gymnasium_robotics.envs.fetch.place_in_box import MujocoFetchPlaceInBoxEnv, MujocoPyFetchPlaceInBoxEnv

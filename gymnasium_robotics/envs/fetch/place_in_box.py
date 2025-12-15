@@ -6,14 +6,14 @@ from gymnasium.utils.ezpickle import EzPickle
 from gymnasium_robotics.envs.fetch import MujocoFetchEnv, MujocoPyFetchEnv
 
 # Ensure we get the path separator correct on windows
-MODEL_XML_PATH = os.path.join("fetch", "assembly.xml")
+MODEL_XML_PATH = os.path.join("fetch", "place_in_box.xml")
 
 
-class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
+class MujocoFetchPlaceInBoxEnv(MujocoFetchEnv, EzPickle):
     """
     ## Description
 
-    "Assembly" environment for the Fetch robot. The task is for the robot to pick up a rectangular
+    "PlaceInBox" environment for the Fetch robot. The task is for the robot to pick up a rectangular
     prism (box) and insert it into a square hole on top of a container box.
 
     The robot is a 7-DoF [Fetch Mobile Manipulator](https://fetchrobotics.com/) with a two-fingered
@@ -76,7 +76,7 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
 
     * `desired_goal`: this key represents the final goal to be achieved. In this environment
       it is a 3-dimensional `ndarray`, `(3,)`, that consists of the three cartesian coordinates
-      of the target position inside the assembly box `[x,y,z]`. This is a fixed position.
+      of the target position inside the container box `[x,y,z]`. This is a fixed position.
 
     * `achieved_goal`: this key represents the current state of the prism, as if it would have
       achieved a goal. The value is an `ndarray` with shape `(3,)` representing the current
@@ -94,8 +94,8 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
 
     To initialize this environment with one of the mentioned reward functions the type of reward
     must be specified in the id string when the environment is initialized. For `sparse` reward
-    the id is the default of the environment, `FetchAssembly-v1`. However, for `dense` reward
-    the id must be modified to `FetchAssemblyDense-v1` and initialized as follows:
+    the id is the default of the environment, `FetchPlaceInBox-v1`. However, for `dense` reward
+    the id must be modified to `FetchPlaceInBoxDense-v1` and initialized as follows:
 
     ```python
     import gymnasium as gym
@@ -103,7 +103,7 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
 
     gym.register_envs(gymnasium_robotics)
 
-    env = gym.make('FetchAssemblyDense-v1')
+    env = gym.make('FetchPlaceInBoxDense-v1')
     ```
 
     ## Starting State
@@ -116,7 +116,7 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
     the prism is the gripper's x and y coordinates plus an offset sampled from a uniform
     distribution with a range of `[-0.15, 0.15] m`.
 
-    The assembly box with the square hole is fixed at position `(x,y,z) = [1.3, 0.9, 0.50] m`.
+    The container box with the square hole is fixed at position `(x,y,z) = [1.3, 0.9, 0.50] m`.
     The target position is inside the box at `(x,y,z) = [1.3, 0.9, 0.42] m`.
 
     ## Episode End
@@ -136,7 +136,7 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
 
     gym.register_envs(gymnasium_robotics)
 
-    env = gym.make('FetchAssembly-v1', max_episode_steps=100)
+    env = gym.make('FetchPlaceInBox-v1', max_episode_steps=100)
     ```
 
     ## Version History
@@ -238,9 +238,9 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
         return obs, reward, terminated, truncated, info
 
     def _sample_goal(self):
-        """Fixed goal position inside the assembly box.
+        """Fixed goal position inside the container box.
 
-        The goal is at the bottom center of the assembly box.
+        The goal is at the bottom center of the container box.
         Box position: (1.3, 0.9, 0.50), target offset inside: (0, 0, -0.08)
         """
         goal = np.array([1.3, 0.9, 0.42])
@@ -261,7 +261,7 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
         if self.model.na != 0:
             self.data.act[:] = None
 
-        # Assembly box: center (1.3, 0.9), size 0.40m x 0.40m x 0.20m
+        # Container box: center (1.3, 0.9), size 0.40m x 0.40m x 0.20m
         # Box edges: x=[1.10, 1.50], y=[0.70, 1.10]
         # Box top surface Z = 0.50 + 0.10 = 0.60
         # Prism half-height = 0.03, so prism center on top = 0.60 + 0.03 = 0.63
@@ -308,8 +308,8 @@ class MujocoFetchAssemblyEnv(MujocoFetchEnv, EzPickle):
         return True
 
 
-class MujocoPyFetchAssemblyEnv(MujocoPyFetchEnv, EzPickle):
-    """MujocoPy version of the FetchAssembly environment. See MujocoFetchAssemblyEnv for documentation."""
+class MujocoPyFetchPlaceInBoxEnv(MujocoPyFetchEnv, EzPickle):
+    """MujocoPy version of the FetchPlaceInBox environment. See MujocoFetchPlaceInBoxEnv for documentation."""
 
     def __init__(self, reward_type: str = "sparse", **kwargs):
         initial_qpos = {
@@ -337,7 +337,7 @@ class MujocoPyFetchAssemblyEnv(MujocoPyFetchEnv, EzPickle):
         EzPickle.__init__(self, reward_type=reward_type, **kwargs)
 
     def _sample_goal(self):
-        """Fixed goal position inside the assembly box."""
+        """Fixed goal position inside the container box."""
         goal = np.array([1.3, 0.9, 0.42])
         return goal.copy()
 

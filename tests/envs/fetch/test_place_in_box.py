@@ -1,4 +1,4 @@
-"""Tests for the FetchAssembly environment."""
+"""Tests for the FetchPlaceInBox environment."""
 
 import numpy as np
 import pytest
@@ -8,24 +8,24 @@ import gymnasium_robotics
 gym.register_envs(gymnasium_robotics)
 
 
-class TestFetchAssemblyBasics:
-    """Basic functionality tests for FetchAssembly environment."""
+class TestFetchPlaceInBoxBasics:
+    """Basic functionality tests for FetchPlaceInBox environment."""
 
     def test_env_creation_sparse(self):
-        """Test that FetchAssembly-v1 (sparse) can be created."""
-        env = gym.make("FetchAssembly-v1")
+        """Test that FetchPlaceInBox-v1 (sparse) can be created."""
+        env = gym.make("FetchPlaceInBox-v1")
         assert env is not None
         env.close()
 
     def test_env_creation_dense(self):
-        """Test that FetchAssemblyDense-v1 (dense) can be created."""
-        env = gym.make("FetchAssemblyDense-v1")
+        """Test that FetchPlaceInBoxDense-v1 (dense) can be created."""
+        env = gym.make("FetchPlaceInBoxDense-v1")
         assert env is not None
         env.close()
 
     def test_reset_returns_observation(self):
         """Test that reset returns a valid observation."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, info = env.reset()
 
         assert isinstance(obs, dict)
@@ -37,7 +37,7 @@ class TestFetchAssemblyBasics:
 
     def test_observation_shapes(self):
         """Test that observation shapes are correct."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         # observation should be 25-dimensional
@@ -51,7 +51,7 @@ class TestFetchAssemblyBasics:
 
     def test_action_space(self):
         """Test that action space is correct."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
 
         # Action space should be Box with shape (4,)
         assert env.action_space.shape == (4,)
@@ -63,7 +63,7 @@ class TestFetchAssemblyBasics:
 
     def test_step_returns_valid_output(self):
         """Test that step returns valid output format."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         action = env.action_space.sample()
@@ -78,12 +78,12 @@ class TestFetchAssemblyBasics:
         env.close()
 
 
-class TestFetchAssemblyGoal:
+class TestFetchPlaceInBoxGoal:
     """Tests for goal-related functionality."""
 
     def test_fixed_goal_position(self):
         """Test that goal position is fixed at correct location."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
 
         expected_goal = np.array([1.3, 0.9, 0.42])
 
@@ -97,7 +97,7 @@ class TestFetchAssemblyGoal:
 
     def test_achieved_goal_is_prism_position(self):
         """Test that achieved_goal represents prism position."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         # Achieved goal should be the prism's position
@@ -108,12 +108,12 @@ class TestFetchAssemblyGoal:
         env.close()
 
 
-class TestFetchAssemblySpawn:
+class TestFetchPlaceInBoxSpawn:
     """Tests for prism spawn position."""
 
     def test_prism_not_spawning_in_box(self):
         """Test that prism doesn't spawn inside the assembly box area."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
 
         box_x, box_y = 1.3, 0.9
         box_margin = 0.12
@@ -134,7 +134,7 @@ class TestFetchAssemblySpawn:
 
     def test_prism_spawns_on_table(self):
         """Test that prism spawns at table height."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
 
         for _ in range(10):
             obs, _ = env.reset()
@@ -146,12 +146,12 @@ class TestFetchAssemblySpawn:
         env.close()
 
 
-class TestFetchAssemblyReward:
+class TestFetchPlaceInBoxReward:
     """Tests for reward function."""
 
     def test_sparse_reward_values(self):
         """Test that sparse reward returns -1 or 0."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         for _ in range(10):
@@ -166,7 +166,7 @@ class TestFetchAssemblyReward:
 
     def test_dense_reward_is_negative_distance(self):
         """Test that dense reward is negative distance."""
-        env = gym.make("FetchAssemblyDense-v1")
+        env = gym.make("FetchPlaceInBoxDense-v1")
         obs, _ = env.reset()
 
         action = env.action_space.sample()
@@ -184,7 +184,7 @@ class TestFetchAssemblyReward:
 
     def test_compute_reward_method(self):
         """Test that compute_reward method works correctly."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         achieved = obs["achieved_goal"]
@@ -202,7 +202,7 @@ class TestFetchAssemblyReward:
 
     def test_sparse_reward_threshold(self):
         """Test that sparse reward uses correct distance threshold (0.05m)."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
 
         # Test with distance just below threshold - should give 0
         achieved_close = np.array([1.3, 0.9, 0.42])  # Goal position
@@ -230,7 +230,7 @@ class TestFetchAssemblyReward:
 
     def test_dense_reward_decreases_with_distance(self):
         """Test that dense reward decreases as distance increases."""
-        env = gym.make("FetchAssemblyDense-v1")
+        env = gym.make("FetchPlaceInBoxDense-v1")
 
         desired = np.array([1.3, 0.9, 0.42])
 
@@ -252,7 +252,7 @@ class TestFetchAssemblyReward:
 
     def test_reward_info_dict(self):
         """Test that info dict contains is_success key."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         action = env.action_space.sample()
@@ -268,7 +268,7 @@ class TestFetchAssemblyReward:
 
     def test_success_when_goal_achieved(self):
         """Test that is_success is True when goal is achieved."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
 
         # Manually check success computation
         desired = np.array([1.3, 0.9, 0.42])
@@ -288,12 +288,12 @@ class TestFetchAssemblyReward:
         env.close()
 
 
-class TestFetchAssemblyGoalDetailed:
+class TestFetchPlaceInBoxGoalDetailed:
     """Detailed tests for goal-related functionality."""
 
     def test_goal_position_is_inside_box(self):
         """Test that goal position is geometrically inside the assembly box."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         goal = obs["desired_goal"]
@@ -317,7 +317,7 @@ class TestFetchAssemblyGoalDetailed:
 
     def test_goal_never_changes_during_episode(self):
         """Test that goal remains fixed throughout an episode."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         initial_goal = obs["desired_goal"].copy()
@@ -337,7 +337,7 @@ class TestFetchAssemblyGoalDetailed:
 
     def test_goal_same_across_resets(self):
         """Test that goal is always the same (fixed position)."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
 
         goals = []
         for _ in range(10):
@@ -357,7 +357,7 @@ class TestFetchAssemblyGoalDetailed:
 
     def test_achieved_goal_updates_with_prism(self):
         """Test that achieved_goal updates as prism moves."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         initial_achieved = obs["achieved_goal"].copy()
@@ -381,12 +381,12 @@ class TestFetchAssemblyGoalDetailed:
         env.close()
 
 
-class TestFetchAssemblyHER:
+class TestFetchPlaceInBoxHER:
     """Tests for HER (Hindsight Experience Replay) compatibility."""
 
     def test_goal_aware_observation_space(self):
         """Test that observation space is goal-aware (HER compatible)."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
 
         # Check observation space structure
         assert hasattr(env.observation_space, "spaces")
@@ -398,7 +398,7 @@ class TestFetchAssemblyHER:
 
     def test_compute_reward_accepts_batches(self):
         """Test that compute_reward works with batch inputs."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         # Create batch of goals
@@ -413,12 +413,12 @@ class TestFetchAssemblyHER:
         env.close()
 
 
-class TestFetchAssemblyPhysics:
+class TestFetchPlaceInBoxPhysics:
     """Tests for physics simulation."""
 
     def test_gripper_can_move(self):
         """Test that gripper responds to actions."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs_before, _ = env.reset()
 
         gripper_pos_before = obs_before["observation"][:3].copy()
@@ -437,7 +437,7 @@ class TestFetchAssemblyPhysics:
 
     def test_gripper_can_close(self):
         """Test that gripper can close."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         # Close gripper action
@@ -456,7 +456,7 @@ class TestFetchAssemblyPhysics:
 
     def test_multiple_steps_stable(self):
         """Test that multiple steps don't cause instability."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         env.reset()
 
         for _ in range(100):
@@ -472,7 +472,7 @@ class TestFetchAssemblyPhysics:
 
     def test_prism_falls_with_gravity(self):
         """Test that prism falls when dropped from height."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         env.reset()
 
         # Get initial prism z position
@@ -493,7 +493,7 @@ class TestFetchAssemblyPhysics:
 
     def test_gripper_move_to_prism(self):
         """Test that gripper can move towards the prism."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         gripper_pos = obs["observation"][:3]
@@ -524,7 +524,7 @@ class TestFetchAssemblyPhysics:
 
     def test_prism_has_physics(self):
         """Test that prism has proper physics (can be affected by collisions)."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         # Check that prism has velocity components in observation
@@ -546,7 +546,7 @@ class TestFetchAssemblyPhysics:
 
     def test_gripper_grasp_attempt(self):
         """Test gripper can attempt to grasp by closing around object area."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         prism_pos = obs["achieved_goal"]
@@ -578,7 +578,7 @@ class TestFetchAssemblyPhysics:
 
     def test_prism_lift_attempt(self):
         """Test that prism can potentially be lifted (gripper can move up while closed)."""
-        env = gym.make("FetchAssembly-v1")
+        env = gym.make("FetchPlaceInBox-v1")
         obs, _ = env.reset()
 
         prism_pos = obs["achieved_goal"]

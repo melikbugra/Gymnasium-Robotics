@@ -66,10 +66,10 @@ def register_robotics_envs():
         )
 
         register(
-            id=f"FetchAssembly{suffix}-v1",
-            entry_point="gymnasium_robotics.envs.fetch.assembly:MujocoFetchAssemblyEnv",
+            id=f"FetchPlaceInBox{suffix}-v1",
+            entry_point="gymnasium_robotics.envs.fetch.place_in_box:MujocoFetchPlaceInBoxEnv",
             kwargs=kwargs,
-            max_episode_steps=200,  # Assembly needs more steps (manual ~300, optimized ~150-200)
+            max_episode_steps=200,  # PlaceInBox needs more steps (manual ~300, optimized ~150-200)
         )
 
         register(
