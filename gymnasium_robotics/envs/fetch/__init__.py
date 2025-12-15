@@ -1,3 +1,4 @@
 from gymnasium_robotics.envs.fetch.fetch_env import MujocoFetchEnv, MujocoPyFetchEnv
 from gymnasium_robotics.envs.fetch.place_in_box import MujocoFetchPlaceInBoxEnv, MujocoPyFetchPlaceInBoxEnv
 from gymnasium_robotics.envs.fetch.peg_in_hole import MujocoFetchPegInHoleEnv, MujocoPyFetchPegInHoleEnv
+from gymnasium_robotics.envs.fetch.peg_in_hole_pre_held import MujocoFetchPegInHolePreHeldEnv, MujocoPyFetchPegInHolePreHeldEnv

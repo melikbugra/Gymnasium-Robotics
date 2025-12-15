@@ -80,6 +80,13 @@ def register_robotics_envs():
         )
 
         register(
+            id=f"FetchPegInHolePreHeld{suffix}-v1",
+            entry_point="gymnasium_robotics.envs.fetch.peg_in_hole_pre_held:MujocoFetchPegInHolePreHeldEnv",
+            kwargs=kwargs,
+            max_episode_steps=50,  # PegInHolePreHeld - insertion only (no grasping)
+        )
+
+        register(
             id=f"FetchPush{suffix}-v1",
             entry_point="gymnasium_robotics.envs.fetch.push:MujocoPyFetchPushEnv",
             kwargs=kwargs,
