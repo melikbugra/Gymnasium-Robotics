@@ -4,6 +4,7 @@ import numpy as np
 from gymnasium.utils.ezpickle import EzPickle
 
 from gymnasium_robotics.envs.fetch import MujocoFetchEnv, MujocoPyFetchEnv
+from gymnasium_robotics.utils.rotations import euler2quat, quat_mul
 
 # Ensure we get the path separator correct on windows
 MODEL_XML_PATH = os.path.join("fetch", "peg_in_hole_pre_held.xml")
@@ -29,22 +30,21 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
     ## Key Differences from FetchPegInHole
 
     - **Pre-grasped peg**: The peg is welded to the gripper at the start via an equality constraint
-    - **No gripper control**: The gripper action (action[3]) is disabled and has no effect
-    - **3-DoF control**: Only translational movements (dx, dy, dz) are available
+    - **No gripper control**: The gripper stays closed automatically
+    - **4-DoF control**: Translational movements (dx, dy, dz) + Z-axis rotation (wrist roll)
     - **Simplified task**: Focus purely on insertion, no pick-and-place required
     - **Shorter episodes**: Default max_episode_steps=50 (vs 100 for full PegInHole)
 
     ## Action Space
 
-    The action space is a `Box(-1.0, 1.0, (4,), float32)`. Only the first 3 actions control the robot;
-    the 4th action (gripper) is ignored.
+    The action space is a `Box(-1.0, 1.0, (4,), float32)`. Actions control position and Z-axis rotation.
 
     | Num | Action                                                             | Control Min | Control Max | Name (in corresponding XML file) | Joint | Unit         |
     | --- | ------------------------------------------------------------------ | ----------- | ----------- | -------------------------------- | ----- | ------------ |
     | 0   | Displacement of the end effector in the x direction dx             | -1          | 1           | robot0:mocap                     | hinge | position (m) |
     | 1   | Displacement of the end effector in the y direction dy             | -1          | 1           | robot0:mocap                     | hinge | position (m) |
     | 2   | Displacement of the end effector in the z direction dz             | -1          | 1           | robot0:mocap                     | hinge | position (m) |
-    | 3   | **DISABLED** - Gripper action (has no effect)                      | -1          | 1           | N/A                              | N/A   | N/A          |
+    | 3   | Rotation of end effector around Z-axis (wrist roll) dtheta         | -1          | 1           | robot0:mocap                     | hinge | angle (rad)  |
 
     ## Observation Space
 
@@ -252,18 +252,49 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         # All collisions (peg-gripper AND peg-wall) are computed by MuJoCo physics
 
     def _set_action(self, action):
-        """Override to ignore gripper action (action[3]).
+        """Override to add Z-axis rotation control instead of gripper.
 
-        The gripper stays closed via _step_callback(), so action[3] is ignored.
+        action[0:3]: Position delta (dx, dy, dz)
+        action[3]: Z-axis rotation delta (wrist roll)
+
+        The gripper stays closed via _step_callback().
         """
-        # Gripper action is ignored - just pass action through
-        # The _step_callback() will enforce closed gripper
-        super()._set_action(action)
+        assert action.shape == (4,)
+        action = action.copy()
+
+        pos_ctrl = action[:3]
+        rot_z_ctrl = action[3]  # Z-axis rotation delta
+
+        pos_ctrl *= 0.05  # Position limit (same as base class)
+        rot_z_ctrl *= 0.1  # Rotation limit (~5.7 degrees/step max)
+
+        # Get current mocap quaternion (aligned with gripper body)
+        self._utils.reset_mocap2body_xpos(self.model, self.data)
+        current_quat = self.data.mocap_quat[0].copy()
+
+        # Create rotation for wrist roll (rotating peg around its vertical axis)
+        # The gripper is rotated 90 degrees around Y, so gripper's local X = world Z (peg axis)
+        # Using euler [angle, 0, 0] rotates around local X axis = peg's vertical axis
+        rot_quat = euler2quat(np.array([rot_z_ctrl, 0.0, 0.0]))
+
+        # Apply rotation in gripper's local frame: current * local_rotation
+        new_quat = quat_mul(current_quat, rot_quat)
+
+        # Apply position delta
+        self.data.mocap_pos[0] = self.data.mocap_pos[0] + pos_ctrl
+
+        # Apply new quaternion directly (not as delta)
+        self.data.mocap_quat[0] = new_quat
+
+        # Gripper stays closed - set gripper control
+        gripper_ctrl = np.array([0.0, 0.0])
+        gripper_action = np.concatenate([pos_ctrl, [0, 0, 0, 0], gripper_ctrl])
+        self._utils.ctrl_set_action(self.model, self.data, gripper_action)
 
     def step(self, action):
         """Override step to include orientation information in info dict.
 
-        Note: The gripper action (action[3]) is ignored and gripper stays closed.
+        action[3] controls Z-axis rotation (wrist roll). Gripper stays closed.
         """
         obs, reward, terminated, truncated, info = super().step(action)
 
