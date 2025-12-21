@@ -188,6 +188,11 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         self.orientation_weight = 0.5  # Weight for orientation penalty in dense reward
         self.alignment_threshold = 0.1  # Orientation success threshold (radians ~6°)
 
+        # Random spawn area (front part of table, away from hole plate at Y=0.95)
+        self.spawn_range_x = (1.1, 1.5)  # X bounds (table center ±0.2m)
+        self.spawn_range_y = (0.5, 0.8)  # Y bounds (front of table)
+        self.spawn_height = 0.555        # Fixed Z height (above table)
+
     def compute_reward(self, achieved_goal, goal, info):
         """Compute reward with orientation penalty.
 
@@ -346,7 +351,7 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         pass
 
     def _reset_sim(self):
-        """Reset simulation and position peg in gripper's grasp."""
+        """Reset simulation and position peg in gripper's grasp at random location."""
         self._mujoco.mj_resetData(self.model, self.data)
 
         self.data.time = self.initial_time
@@ -368,9 +373,22 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         # Need to do a forward pass to update site positions
         self._mujoco.mj_forward(self.model, self.data)
 
+        # Randomize gripper starting position within spawn area
+        random_x = self.np_random.uniform(*self.spawn_range_x)
+        random_y = self.np_random.uniform(*self.spawn_range_y)
+        random_pos = np.array([random_x, random_y, self.spawn_height])
+
+        # Move mocap (gripper) to random position
+        self._utils.reset_mocap2body_xpos(self.model, self.data)
+        self.data.mocap_pos[0] = random_pos
+
+        # Step simulation to move gripper to new position
+        for _ in range(10):
+            self._mujoco.mj_step(self.model, self.data)
+
         # NOW get gripper position and place peg
         if self.has_object:
-            # Get gripper position (after forward pass)
+            # Get gripper position (after moving to random location)
             gripper_pos = self._utils.get_site_xpos(self.model, self.data, "robot0:grip")
 
             # Set peg position to be in the gripper
