@@ -188,10 +188,16 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         self.orientation_weight = 0.5  # Weight for orientation penalty in dense reward
         self.alignment_threshold = 0.1  # Orientation success threshold (radians ~6°)
 
-        # Random spawn area (front part of table, away from hole plate at Y=0.95)
+        # Random spawn area (entire table including near hole at Y=0.95)
         self.spawn_range_x = (1.1, 1.5)  # X bounds (table center ±0.2m)
-        self.spawn_range_y = (0.5, 0.8)  # Y bounds (front of table)
-        self.spawn_height = 0.555        # Fixed Z height (above table)
+        self.spawn_range_y = (0.5, 1.0)  # Y bounds (full table depth, includes hole area)
+        self.spawn_height = 0.555        # Default Z height (above table)
+        self.spawn_height_above_plate = 0.62  # Higher Z when above hole plate (above walls)
+
+        # Hole plate zone (plate center at X=1.3, Y=0.95, size 30x30cm)
+        self.hole_plate_x = 1.3
+        self.hole_plate_y = 0.95
+        self.hole_plate_half_size = 0.15  # 15cm half-size
 
     def compute_reward(self, achieved_goal, goal, info):
         """Compute reward with orientation penalty.
@@ -376,14 +382,24 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         # Randomize gripper starting position within spawn area
         random_x = self.np_random.uniform(*self.spawn_range_x)
         random_y = self.np_random.uniform(*self.spawn_range_y)
-        random_pos = np.array([random_x, random_y, self.spawn_height])
+
+        # Check if above hole plate - if so, spawn higher to clear walls
+        above_plate_x = abs(random_x - self.hole_plate_x) < self.hole_plate_half_size
+        above_plate_y = abs(random_y - self.hole_plate_y) < self.hole_plate_half_size
+        if above_plate_x and above_plate_y:
+            spawn_z = self.spawn_height_above_plate  # Higher to clear walls
+        else:
+            spawn_z = self.spawn_height  # Normal height
+
+        random_pos = np.array([random_x, random_y, spawn_z])
 
         # Move mocap (gripper) to random position
         self._utils.reset_mocap2body_xpos(self.model, self.data)
         self.data.mocap_pos[0] = random_pos
 
         # Step simulation to move gripper to new position
-        for _ in range(10):
+        # Need enough steps for the arm to reach the target position
+        for _ in range(100):
             self._mujoco.mj_step(self.model, self.data)
 
         # NOW get gripper position and place peg
