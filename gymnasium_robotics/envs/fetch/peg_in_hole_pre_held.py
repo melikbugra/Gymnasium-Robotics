@@ -4,7 +4,7 @@ import numpy as np
 from gymnasium.utils.ezpickle import EzPickle
 
 from gymnasium_robotics.envs.fetch import MujocoFetchEnv, MujocoPyFetchEnv
-from gymnasium_robotics.utils.rotations import euler2quat, quat_mul
+from gymnasium_robotics.utils.rotations import euler2quat, quat2euler, quat_mul
 
 # Ensure we get the path separator correct on windows
 MODEL_XML_PATH = os.path.join("fetch", "peg_in_hole_pre_held.xml")
@@ -97,7 +97,7 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
     - *sparse*: the returned reward can have two values: `-1` if the peg hasn't reached its
       final target position inside the hole AND is properly aligned (vertical), and `0` if the peg
       is in the final target position with proper orientation (the peg is considered successful if the
-      Euclidean distance between the peg and the goal is lower than 0.01 m and orientation error is lower than 0.1 rad).
+      Euclidean distance between the peg and the goal is lower than 0.02 m and orientation error is lower than 0.1 rad).
     - *dense*: the returned reward is the negative Euclidean distance between the achieved goal
       position (peg position) and the desired goal (hole center), with an additional penalty for
       orientation misalignment. No grip bonus is provided since the peg is always grasped.
@@ -125,8 +125,8 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
     The peg is welded to the gripper at a fixed relative position. The peg starts in a vertical
     (upright) orientation, aligned with the gripper.
 
-    The hole plate with the square hole is fixed at position `(x,y,z) = [1.3, 0.9, 0.42] m`.
-    The target position is at the hole center at `(x,y,z) = [1.3, 0.9, 0.45] m`.
+    The hole plate with the square hole is fixed at position `(x,y,z) = [1.525, 0.825, 0.42] m`.
+    The target position is at the hole center at `(x,y,z) = [1.525, 0.825, 0.45] m`.
 
     ## Episode End
 
@@ -172,7 +172,7 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
             target_offset=0.0,
             obj_range=0.0,  # No randomization - peg starts in grasp
             target_range=0.0,  # No randomization for target - fixed hole position
-            distance_threshold=0.005,  # 5mm - tight threshold for insertion
+            distance_threshold=0.02,  # 20mm - relaxed for RL learnability
             initial_qpos=initial_qpos,
             reward_type=reward_type,
             **kwargs,
@@ -185,82 +185,142 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         self.target_gripper_pos = 0.0  # Fully closed - maximum grip force
 
         # Peg-in-hole specific parameters (no grip reward since always grasped)
-        self.orientation_weight = 0.5  # Weight for orientation penalty in dense reward
+        self.orientation_weight = 0.0  # Disabled: weld constraint handles alignment, penalty discourages insertion
         self.alignment_threshold = 0.1  # Orientation success threshold (radians ~6°)
 
-        # Random spawn area (entire table including near hole at Y=0.95)
-        self.spawn_range_x = (1.1, 1.5)  # X bounds (table center ±0.2m)
-        self.spawn_range_y = (0.5, 1.0)  # Y bounds (full table depth, includes hole area)
+        # Random spawn area (entire table including near hole at Y=0.825)
+        self.spawn_range_x = (1.475, 1.575)  # X bounds (±5cm around hole)
+        self.spawn_range_y = (0.775, 0.875)  # Y bounds (±5cm around hole)
         self.spawn_height = 0.555        # Default Z height (above table)
         self.spawn_height_above_plate = 0.62  # Higher Z when above hole plate (above walls)
 
-        # Hole plate zone (plate center at X=1.3, Y=0.95, size 30x30cm)
-        self.hole_plate_x = 1.3
-        self.hole_plate_y = 0.95
+        # Hole plate zone (plate center at X=1.525, Y=0.825, size 30x30cm)
+        self.hole_plate_x = 1.525
+        self.hole_plate_y = 0.825
         self.hole_plate_half_size = 0.15  # 15cm half-size
 
-    def compute_reward(self, achieved_goal, goal, info):
-        """Compute reward with orientation penalty.
+        # Decomposed reward scaling factors (Robosuite-inspired)
+        self.k_lateral = 10.0    # tanh scaling for XY distance
+        self.k_depth = 5.0       # tanh scaling for Z distance
+        self.w_lateral = 1.0     # weight for lateral centering
+        self.w_depth = 1.0       # weight for insertion depth
+        self.w_alignment = 0.5   # weight for peg tilt alignment
 
-        For peg-in-hole assembly, both position and orientation matter.
-        The peg must reach the hole center AND be properly aligned (vertical).
-        No grip bonus is provided since the peg is always grasped.
+        # Cache weld constraint ID for peg-gripper attachment
+        self._weld_eq_id = self._mujoco.mj_name2id(
+            self.model, self._mujoco.mjtObj.mjOBJ_EQUALITY, "peg_grip"
+        )
+        assert self._weld_eq_id >= 0, "Weld constraint 'peg_grip' not found in model"
+
+    def compute_reward(self, achieved_goal, goal, info):
+        """Decomposed reward: lateral + depth + alignment.
+
+        Robosuite-inspired: each axis provides a separate signal so the agent
+        can distinguish lateral misalignment from insufficient insertion depth.
         """
-        # Base reward: distance to goal
-        d = np.linalg.norm(achieved_goal - goal, axis=-1)
+        diff = achieved_goal - goal
 
         if self.reward_type == "sparse":
-            # Success requires both position AND orientation
+            d = np.linalg.norm(diff, axis=-1)
             position_ok = d < self.distance_threshold
             orientation_ok = info.get("orientation_error", 1.0) < self.alignment_threshold
-            # Combine both conditions for success
             reward = -((~(position_ok & orientation_ok)).astype(np.float32))
         else:
-            # Dense reward: distance + orientation penalty (no grip bonus)
-            reward = -d
+            # Lateral: XY distance (centering over hole)
+            d_xy = np.linalg.norm(diff[..., :2], axis=-1)
+            lateral = 1.0 - np.tanh(self.k_lateral * d_xy)
 
-            # Add orientation penalty (peg should be vertical)
-            if "orientation_error" in info:
-                reward += -self.orientation_weight * info["orientation_error"]
+            # Depth: Z distance (insertion depth)
+            d_z = np.abs(diff[..., 2])
+            depth = 1.0 - np.tanh(self.k_depth * d_z)
+
+            # Alignment: peg tilt error (from info dict)
+            tilt_error = info.get("orientation_error", 0.0)
+            alignment = np.cos(tilt_error)
+
+            reward = (self.w_lateral * lateral
+                    + self.w_depth * depth
+                    + self.w_alignment * alignment)
 
         return reward
 
     def _get_peg_orientation_error(self):
         """Calculate peg orientation error (should be vertical).
 
+        Reads peg quaternion directly from MuJoCo joint data instead of
+        calling _get_obs() again (avoids redundant full observation computation).
+
         For a vertical peg, X and Y rotations (tilt) should be near 0.
         Z rotation doesn't matter as it's rotation around the peg's own axis.
         """
-        obs = self._get_obs()
-        peg_rot = obs["observation"][11:14]  # Euler XYZ rotations
+        peg_quat = self._utils.get_joint_qpos(
+            self.model, self.data, "object0:joint"
+        )[3:7]
+        peg_euler = quat2euler(peg_quat)
 
         # For vertical peg, X and Y rotations should be near 0
         # Z rotation doesn't matter (rotation around peg axis)
-        tilt_error = np.sqrt(peg_rot[0]**2 + peg_rot[1]**2)
+        tilt_error = np.sqrt(peg_euler[0]**2 + peg_euler[1]**2)
 
         return tilt_error
 
-    def _step_callback(self):
-        """Override to keep gripper closed - pure physics-based gripping.
+    def _reset_mocap2body_xpos(self):
+        """Reset mocap positions, skipping non-mocap welds (e.g., peg-grip)."""
+        import mujoco as mj
+        for i in range(self.model.neq):
+            if self.model.eq_type[i] != mj.mjtEq.mjEQ_WELD:
+                continue
+            obj1_id = self.model.eq_obj1id[i]
+            obj2_id = self.model.eq_obj2id[i]
+            mocap_id = self.model.body_mocapid[obj1_id]
+            if mocap_id != -1:
+                body_idx = obj2_id
+            else:
+                mocap_id = self.model.body_mocapid[obj2_id]
+                body_idx = obj1_id
+            if mocap_id == -1:
+                continue  # Skip non-mocap welds (peg-grip)
+            self.data.mocap_pos[mocap_id][:] = self.data.xpos[body_idx]
+            self.data.mocap_quat[mocap_id][:] = self.data.xquat[body_idx]
 
-        The gripper fingers physically hold the peg through contact forces and friction.
-        No kinematic constraints - all physics and collision detection fully active.
-        """
-        # Set gripper actuator control to maintain closed position
+    def _update_weld_constraint(self):
+        """Compute and set weld relpose from current gripper-peg body positions."""
+        grip_body_id = self._mujoco.mj_name2id(
+            self.model, self._mujoco.mjtObj.mjOBJ_BODY, "robot0:gripper_link"
+        )
+        peg_body_id = self._mujoco.mj_name2id(
+            self.model, self._mujoco.mjtObj.mjOBJ_BODY, "object0"
+        )
+
+        grip_pos = self.data.xpos[grip_body_id]
+        grip_mat = self.data.xmat[grip_body_id].reshape(3, 3)
+        grip_quat = self.data.xquat[grip_body_id]
+        peg_pos = self.data.xpos[peg_body_id]
+        peg_quat = self.data.xquat[peg_body_id]
+
+        # Relative position: peg in gripper's local frame
+        rel_pos = grip_mat.T @ (peg_pos - grip_pos)
+
+        # Relative quaternion: q_rel = q_grip^{-1} * q_peg
+        grip_quat_inv = np.array([
+            grip_quat[0], -grip_quat[1], -grip_quat[2], -grip_quat[3]
+        ])
+        rel_quat = quat_mul(grip_quat_inv, peg_quat)
+
+        # eq_data layout: [anchor(3), relpose_pos(3), relpose_quat(4), torquescale(1)]
+        self.model.eq_data[self._weld_eq_id, 3:6] = rel_pos
+        self.model.eq_data[self._weld_eq_id, 6:10] = rel_quat
+
+    def _step_callback(self):
+        """Keep gripper closed. Peg held by weld constraint + finger contact."""
         if hasattr(self, 'data') and hasattr(self.data, 'ctrl'):
             try:
                 l_finger_idx = self._model_names.actuator_name2id["robot0:l_gripper_finger_joint"]
                 r_finger_idx = self._model_names.actuator_name2id["robot0:r_gripper_finger_joint"]
-
-                # Apply strong closing force to grip peg
                 self.data.ctrl[l_finger_idx] = self.target_gripper_pos
                 self.data.ctrl[r_finger_idx] = self.target_gripper_pos
             except (KeyError, AttributeError):
                 pass
-
-        # NO kinematic weld, NO position override
-        # Peg is held purely by gripper contact forces and friction
-        # All collisions (peg-gripper AND peg-wall) are computed by MuJoCo physics
 
     def _set_action(self, action):
         """Override to add Z-axis rotation control instead of gripper.
@@ -280,7 +340,7 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         rot_z_ctrl *= 0.1  # Rotation limit (~5.7 degrees/step max)
 
         # Get current mocap quaternion (aligned with gripper body)
-        self._utils.reset_mocap2body_xpos(self.model, self.data)
+        self._reset_mocap2body_xpos()
         current_quat = self.data.mocap_quat[0].copy()
 
         # Create rotation for wrist roll (rotating peg around its vertical axis)
@@ -308,16 +368,23 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         action[3] controls Z-axis rotation (wrist roll). Gripper stays closed.
         """
         obs, reward, terminated, truncated, info = super().step(action)
-
-        # Peg is always grasped (welded)
         info["is_grasped"] = True
 
-        # Calculate orientation error and add to info
         orientation_error = self._get_peg_orientation_error()
         info["orientation_error"] = orientation_error
 
-        # Recompute reward with orientation info
         reward = self.compute_reward(obs["achieved_goal"], self.goal, info)
+
+        # Log decomposed reward components (dense mode only)
+        if self.reward_type != "sparse":
+            diff = obs["achieved_goal"] - self.goal
+            d_xy = np.linalg.norm(diff[:2])
+            d_z = np.abs(diff[2])
+            info["reward_lateral"] = float(1.0 - np.tanh(self.k_lateral * d_xy))
+            info["reward_depth"] = float(1.0 - np.tanh(self.k_depth * d_z))
+            info["reward_alignment"] = float(np.cos(orientation_error))
+            info["d_xy"] = float(d_xy)
+            info["d_z"] = float(d_z)
 
         return obs, reward, terminated, truncated, info
 
@@ -342,13 +409,17 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         return obs_dict
 
     def _sample_goal(self):
-        """Fixed goal position inside the hole.
+        """Goal position inside the hole with small XY perturbation.
 
-        The hole plate is at (1.3, 0.95, 0.42), hole is 10cm deep.
-        Goal is for peg TIP to reach 5cm inside the hole (middle depth).
-        Hole top at Z=0.52, goal at Z=0.47 (5cm inside).
+        The hole plate is at (1.525, 0.825, 0.42), hole is 10cm deep.
+        Goal is for peg TIP to reach 5.5cm inside the hole.
+        Hole top at Z=0.505, goal at Z=0.45 (5.5cm inside).
+
+        Small XY randomization (±1mm) within 2mm clearance for valid HER relabeling.
         """
-        goal = np.array([1.3, 0.95, 0.47])
+        goal = np.array([1.525, 0.825, 0.45])
+        goal[0] += self.np_random.uniform(-0.001, 0.001)
+        goal[1] += self.np_random.uniform(-0.001, 0.001)
         return goal.copy()
 
     def _render_callback(self):
@@ -366,8 +437,10 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         if self.model.na != 0:
             self.data.act[:] = None
 
+        # Disable weld during setup to avoid interference while positioning
+        self.model.eq_active0[self._weld_eq_id] = 0
+
         # Close gripper fingers to hold the peg
-        # Set gripper joint positions to closed state BEFORE forward
         gripper_target = self.target_gripper_pos
         self._utils.set_joint_qpos(
             self.model, self.data, "robot0:l_gripper_finger_joint", gripper_target
@@ -376,7 +449,6 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
             self.model, self.data, "robot0:r_gripper_finger_joint", gripper_target
         )
 
-        # Need to do a forward pass to update site positions
         self._mujoco.mj_forward(self.model, self.data)
 
         # Randomize gripper starting position within spawn area
@@ -387,41 +459,39 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         above_plate_x = abs(random_x - self.hole_plate_x) < self.hole_plate_half_size
         above_plate_y = abs(random_y - self.hole_plate_y) < self.hole_plate_half_size
         if above_plate_x and above_plate_y:
-            spawn_z = self.spawn_height_above_plate  # Higher to clear walls
+            spawn_z = self.spawn_height_above_plate
         else:
-            spawn_z = self.spawn_height  # Normal height
+            spawn_z = self.spawn_height
 
         random_pos = np.array([random_x, random_y, spawn_z])
 
         # Move mocap (gripper) to random position
-        self._utils.reset_mocap2body_xpos(self.model, self.data)
+        self._reset_mocap2body_xpos()
         self.data.mocap_pos[0] = random_pos
 
         # Step simulation to move gripper to new position
-        # Need enough steps for the arm to reach the target position
-        for _ in range(100):
+        for _ in range(300):
             self._mujoco.mj_step(self.model, self.data)
 
-        # NOW get gripper position and place peg
+        # Position peg in gripper
         if self.has_object:
-            # Get gripper position (after moving to random location)
             gripper_pos = self._utils.get_site_xpos(self.model, self.data, "robot0:grip")
 
-            # Set peg position to be in the gripper
             peg_qpos = self._utils.get_joint_qpos(self.model, self.data, "object0:joint")
             assert peg_qpos.shape == (7,)
 
-            # Position: gripper position with offset
-            # Peg is 8cm tall (half-size 4cm). Place peg center 2cm below grip site
-            # so gripper fingers hold the TOP THIRD of the peg (better leverage)
+            # Place peg center 2cm below grip site
             peg_qpos[:3] = gripper_pos + np.array([0.0, 0.0, -0.02])
-            # Orientation: upright (vertical)
             peg_qpos[3:] = [1.0, 0.0, 0.0, 0.0]
 
             self._utils.set_joint_qpos(self.model, self.data, "object0:joint", peg_qpos)
 
-        # Final forward pass with peg in position
         self._mujoco.mj_forward(self.model, self.data)
+
+        # Enable weld with relpose computed from current configuration
+        self._update_weld_constraint()
+        self.model.eq_active0[self._weld_eq_id] = 1
+
         return True
 
 
@@ -455,7 +525,7 @@ class MujocoPyFetchPegInHolePreHeldEnv(MujocoPyFetchEnv, EzPickle):
 
     def _sample_goal(self):
         """Fixed goal position at hole center."""
-        goal = np.array([1.3, 0.9, 0.45])
+        goal = np.array([1.525, 0.825, 0.45])
         return goal.copy()
 
     def _render_callback(self):

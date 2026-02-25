@@ -87,6 +87,13 @@ def register_robotics_envs():
         )
 
         register(
+            id=f"FetchStir{suffix}-v1",
+            entry_point="gymnasium_robotics.envs.fetch.stir:MujocoFetchStirEnv",
+            kwargs=kwargs,
+            max_episode_steps=200,
+        )
+
+        register(
             id=f"FetchPush{suffix}-v1",
             entry_point="gymnasium_robotics.envs.fetch.push:MujocoPyFetchPushEnv",
             kwargs=kwargs,

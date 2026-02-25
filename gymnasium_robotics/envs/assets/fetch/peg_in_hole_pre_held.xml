@@ -16,8 +16,8 @@
 
 		<include file="robot.xml"></include>
 
-		<body pos="1.3 0.75 0.2" name="table0">
-			<geom size="0.25 0.35 0.2" type="box" mass="2000" material="table_mat"></geom>
+		<body pos="1.425 0.75 0.2" name="table0">
+			<geom size="0.325 0.35 0.2" type="box" mass="2000" material="table_mat"></geom>
 		</body>
 
 		<!-- Square Peg object - 2cm × 2cm × 8cm -->
@@ -28,32 +28,33 @@
 			<!-- Square cross-section peg (half-sizes: 1cm × 1cm × 4cm) -->
 			<!-- Very high friction for secure gripper hold -->
 			<!-- Hard contact: solimp with high dmin/dmax prevents penetration -->
-			<geom name="object0" type="box" size="0.01 0.01 0.07" mass="0.05" rgba="0.2 0.6 0.85 1" condim="4" friction="10.0 8.0 8.0" margin="0.001" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
+			<geom name="object0" type="box" size="0.01 0.01 0.04" mass="0.05" rgba="0.2 0.6 0.85 1" condim="4" friction="10.0 8.0 8.0" margin="0.00001" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
 			<site name="object0" pos="0 0 0" size="0.01 0.01 0.04" rgba="0.2 0.6 0.85 0.3" type="box"></site>
 		</body>
 
-		<!-- Hole Plate - fixed on table rear -->
-		<!-- Plate: 30cm × 30cm × 2cm, Hole: 2.2cm × 2.2cm (1mm clearance per side) -->
-		<body name="hole_plate" pos="1.3 0.95 0.42">
+		<!-- Hole Plate - positioned at X=1.475 Y=0.825 for low arm tilt (~2°) -->
+		<!-- Plate: 30cm × 30cm × 2cm, Hole: 2.02cm × 2.02cm (0.1mm clearance per side) -->
+		<body name="hole_plate" pos="1.525 0.825 0.42">
 			<!-- Base plate (bottom) - 30cm × 30cm × 1cm -->
 			<geom name="plate_base" type="box" size="0.15 0.15 0.005" pos="0 0 -0.015" rgba="0.5 0.5 0.4 1" mass="1000" condim="4" friction="1 0.5 0.5" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
 
-			<!-- Four walls creating 2.2cm × 2.2cm hole in center -->
-			<!-- Wall thickness: 1cm (half-size: 0.005m) -->
-			<!-- Hole half-size: 0.011m, Wall position: 0.011 + 0.005 = 0.016m -->
-			<!-- Hard contact parameters to prevent penetration -->
+			<!-- Four walls creating 2.02cm × 2.02cm hole in center -->
+			<!-- Wall thickness: 10cm (half-size: 0.05m) -->
+			<!-- Hole half-size: 0.0101m (0.1mm clearance per side for 2cm peg) -->
+			<!-- Max tilt: arcsin(0.0001/0.04) = 0.14° -->
+			<!-- Wall position: 0.0101 + 0.05 = 0.0601m -->
 
 			<!-- Front wall (positive Y side) -->
-			<geom name="plate_wall_front" type="box" size="0.15 0.005 0.05" pos="0 0.016 0.035" rgba="0.5 0.5 0.4 1" condim="4" friction="1 0.5 0.5" margin="0.001" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
+			<geom name="plate_wall_front" type="box" size="0.15 0.05 0.05" pos="0 0.0601 0.035" rgba="0.5 0.5 0.4 1" condim="4" friction="1 0.5 0.5" margin="0.00001" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
 
 			<!-- Back wall (negative Y side) -->
-			<geom name="plate_wall_back" type="box" size="0.15 0.005 0.05" pos="0 -0.016 0.035" rgba="0.5 0.5 0.4 1" condim="4" friction="1 0.5 0.5" margin="0.001" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
+			<geom name="plate_wall_back" type="box" size="0.15 0.05 0.05" pos="0 -0.0601 0.035" rgba="0.5 0.5 0.4 1" condim="4" friction="1 0.5 0.5" margin="0.00001" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
 
 			<!-- Left wall (negative X side) -->
-			<geom name="plate_wall_left" type="box" size="0.005 0.011 0.05" pos="-0.016 0 0.035" rgba="0.5 0.5 0.4 1" condim="4" friction="1 0.5 0.5" margin="0.001" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
+			<geom name="plate_wall_left" type="box" size="0.05 0.0101 0.05" pos="-0.0601 0 0.035" rgba="0.5 0.5 0.4 1" condim="4" friction="1 0.5 0.5" margin="0.00001" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
 
 			<!-- Right wall (positive X side) -->
-			<geom name="plate_wall_right" type="box" size="0.005 0.011 0.05" pos="0.016 0 0.035" rgba="0.5 0.5 0.4 1" condim="4" friction="1 0.5 0.5" margin="0.001" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
+			<geom name="plate_wall_right" type="box" size="0.05 0.0101 0.05" pos="0.0601 0 0.035" rgba="0.5 0.5 0.4 1" condim="4" friction="1 0.5 0.5" margin="0.00001" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
 
 			<!-- Visual site for hole center (target visualization) -->
 			<site name="hole_center" pos="0 0 0.035" size="0.005 0.005 0.005" rgba="1 0 0 0.5" type="sphere"></site>
@@ -73,16 +74,22 @@
 		<pair geom1="object0" geom2="robot0:wrist_roll_link" condim="4" friction="2 2 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
 		<pair geom1="object0" geom2="robot0:wrist_flex_link" condim="4" friction="2 2 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
 		<!-- Peg vs hole walls - VERY hard contact to prevent penetration -->
-		<pair geom1="object0" geom2="plate_wall_front" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.0005"></pair>
-		<pair geom1="object0" geom2="plate_wall_back" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.0005"></pair>
-		<pair geom1="object0" geom2="plate_wall_left" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.0005"></pair>
-		<pair geom1="object0" geom2="plate_wall_right" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.0005"></pair>
-		<pair geom1="object0" geom2="plate_base" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.0005"></pair>
+		<pair geom1="object0" geom2="plate_wall_front" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.00001"></pair>
+		<pair geom1="object0" geom2="plate_wall_back" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.00001"></pair>
+		<pair geom1="object0" geom2="plate_wall_left" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.00001"></pair>
+		<pair geom1="object0" geom2="plate_wall_right" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.00001"></pair>
+		<pair geom1="object0" geom2="plate_base" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.00001"></pair>
 	</contact>
 
+	<equality>
+		<!-- Weld peg to gripper: prevents peg from flying out during insertion.
+		     Wall contacts still computed normally - agent must rotate to align.
+		     relpose set programmatically in _reset_sim after positioning. -->
+		<weld name="peg_grip" body1="robot0:gripper_link" body2="object0" solref="0.0005 1" solimp="0.999 0.9999 0.00001 0.5 2"/>
+	</equality>
+
 	<actuator>
-		<!-- Gripper actuators with extremely high kp for very strong grip -->
-		<!-- Higher kp = stronger force to maintain position = tighter grip -->
+		<!-- Gripper actuators: fingers still close for realistic contact forces -->
 		<position ctrllimited="true" ctrlrange="0 0.2" joint="robot0:l_gripper_finger_joint" kp="200000" name="robot0:l_gripper_finger_joint" user="1"></position>
 		<position ctrllimited="true" ctrlrange="0 0.2" joint="robot0:r_gripper_finger_joint" kp="200000" name="robot0:r_gripper_finger_joint" user="1"></position>
 	</actuator>

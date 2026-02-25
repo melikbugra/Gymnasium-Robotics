@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mujoco>
+	<compiler angle="radian" coordinate="local" meshdir="../stls/fetch" texturedir="../textures"></compiler>
+	<option timestep="0.002">
+		<flag warmstart="enable"></flag>
+	</option>
+
+	<include file="shared.xml"></include>
+
+	<asset>
+		<mesh name="stir_bowl_mesh" file="stir_bowl.stl"/>
+	</asset>
+
+	<worldbody>
+		<geom name="floor0" pos="0.8 0.75 0" size="0.85 0.7 1" type="plane" condim="3" contype="5" conaffinity="5" material="floor_mat"></geom>
+		<body name="floor0" pos="0.8 0.75 0">
+			<site name="target0" pos="0 0 0.5" size="0.02 0.02 0.02" rgba="1 0 0 0" type="sphere"></site>
+		</body>
+
+		<include file="robot.xml"></include>
+
+		<body pos="1.425 0.75 0.2" name="table0">
+			<geom size="0.325 0.35 0.2" type="box" mass="2000" contype="5" conaffinity="5" material="table_mat"></geom>
+		</body>
+
+		<!-- Spoon (object0) - pre-held, welded to gripper via spoon_grip -->
+		<body name="object0" pos="1.3419 0.7491 0.560">
+			<joint name="object0:joint" type="free" damping="0.01"></joint>
+			<!-- Handle: thin cylinder pointing up (top at z=+0.18, grip point unchanged) -->
+			<geom name="spoon_handle" type="cylinder" size="0.006 0.14"
+			      pos="0 0 0.04" mass="0.04" rgba="0.75 0.55 0.30 1"
+			      condim="3" contype="4" conaffinity="4" friction="10 8 8" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
+			<!-- Head: sphere at bottom (14 cm below spoon origin → 9 cm deeper than before) -->
+			<geom name="spoon_head" type="sphere" size="0.022"
+			      pos="0 0 -0.12" mass="0.01" rgba="0.75 0.55 0.30 1"
+			      condim="3" contype="4" conaffinity="4" friction="2 2 2" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
+			<site name="object0" pos="0 0 0" size="0.01 0.01 0.01" rgba="0.75 0.55 0.30 0.3" type="sphere"></site>
+		</body>
+
+		<!-- Stir bowl - dynamic (free joint), heavy base for stability -->
+		<!-- Bowl center at (1.525, 0.825, 0.410): base_bottom=0.400 = table_top -->
+		<body name="stir_bowl" pos="1.525 0.825 0.410">
+			<joint name="stir_bowl:joint" type="free" damping="5.0"></joint>
+			<!-- Base disk: radius 0.135, height 0.020 -->
+			<geom name="bowl_base" type="cylinder" size="0.135 0.010"
+			      mass="4.0" rgba="0.85 0.75 0.55 0"
+			      condim="3" contype="5" conaffinity="5" friction="5 5 5" solimp="0.99 0.999 0.0001" solref="0.002 1"></geom>
+			<!-- 8 wall segments at 45-degree intervals -->
+			<!-- Each: box half-sizes (0.046 along arc, 0.012 radial, 0.075 vertical) -->
+			<!-- r=0.130 from center, euler rotates segment to face outward -->
+			<!-- angle 0 deg -->
+			<geom name="bowl_wall_0" type="box" size="0.046 0.020 0.185"
+			      pos="0.130 0.000 0.185" euler="0 0 0"
+			      mass="0.06" rgba="0.85 0.75 0.55 0"
+			      condim="3" contype="5" conaffinity="5" friction="0.3 0.01 0.01" solimp="0.99 0.999 0.0001" solref="0.001 1"></geom>
+			<!-- angle 45 deg -->
+			<geom name="bowl_wall_45" type="box" size="0.046 0.020 0.185"
+			      pos="0.09192 0.09192 0.185" euler="0 0 0.7854"
+			      mass="0.06" rgba="0.85 0.75 0.55 0"
+			      condim="3" contype="5" conaffinity="5" friction="0.3 0.01 0.01" solimp="0.99 0.999 0.0001" solref="0.001 1"></geom>
+			<!-- angle 90 deg -->
+			<geom name="bowl_wall_90" type="box" size="0.046 0.020 0.185"
+			      pos="0.000 0.130 0.185" euler="0 0 1.5708"
+			      mass="0.06" rgba="0.85 0.75 0.55 0"
+			      condim="3" contype="5" conaffinity="5" friction="0.3 0.01 0.01" solimp="0.99 0.999 0.0001" solref="0.001 1"></geom>
+			<!-- angle 135 deg -->
+			<geom name="bowl_wall_135" type="box" size="0.046 0.020 0.185"
+			      pos="-0.09192 0.09192 0.185" euler="0 0 2.3562"
+			      mass="0.06" rgba="0.85 0.75 0.55 0"
+			      condim="3" contype="5" conaffinity="5" friction="0.3 0.01 0.01" solimp="0.99 0.999 0.0001" solref="0.001 1"></geom>
+			<!-- angle 180 deg -->
+			<geom name="bowl_wall_180" type="box" size="0.046 0.020 0.185"
+			      pos="-0.130 0.000 0.185" euler="0 0 3.1416"
+			      mass="0.06" rgba="0.85 0.75 0.55 0"
+			      condim="3" contype="5" conaffinity="5" friction="0.3 0.01 0.01" solimp="0.99 0.999 0.0001" solref="0.001 1"></geom>
+			<!-- angle 225 deg -->
+			<geom name="bowl_wall_225" type="box" size="0.046 0.020 0.185"
+			      pos="-0.09192 -0.09192 0.185" euler="0 0 3.9270"
+			      mass="0.06" rgba="0.85 0.75 0.55 0"
+			      condim="3" contype="5" conaffinity="5" friction="0.3 0.01 0.01" solimp="0.99 0.999 0.0001" solref="0.001 1"></geom>
+			<!-- angle 270 deg -->
+			<geom name="bowl_wall_270" type="box" size="0.046 0.020 0.185"
+			      pos="0.000 -0.130 0.185" euler="0 0 4.7124"
+			      mass="0.06" rgba="0.85 0.75 0.55 0"
+			      condim="3" contype="5" conaffinity="5" friction="0.3 0.01 0.01" solimp="0.99 0.999 0.0001" solref="0.001 1"></geom>
+			<!-- angle 315 deg -->
+			<geom name="bowl_wall_315" type="box" size="0.046 0.020 0.185"
+			      pos="0.09192 -0.09192 0.185" euler="0 0 5.4978"
+			      mass="0.06" rgba="0.85 0.75 0.55 0"
+			      condim="3" contype="5" conaffinity="5" friction="0.3 0.01 0.01" solimp="0.99 0.999 0.0001" solref="0.001 1"></geom>
+		<!-- Visual mesh — decorative only, no collision/mass -->
+		<geom name="bowl_visual" type="mesh" mesh="stir_bowl_mesh"
+		      rgba="0.85 0.75 0.55 1"
+		      contype="0" conaffinity="0" mass="0"/>
+		</body>
+
+		<!-- Blue balls (object1-object10): start below red balls -->
+		<!-- Layer 1 (Z=0.455): angles 0,72,144,216,288 deg, r=0.055 -->
+		<body name="object1" pos="1.5800 0.8250 0.455">
+			<joint name="object1:joint" type="free" damping="0.01"></joint>
+			<geom name="object1" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object2" pos="1.5420 0.8773 0.455">
+			<joint name="object2:joint" type="free" damping="0.01"></joint>
+			<geom name="object2" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object3" pos="1.4805 0.8573 0.455">
+			<joint name="object3:joint" type="free" damping="0.01"></joint>
+			<geom name="object3" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object4" pos="1.4805 0.7927 0.455">
+			<joint name="object4:joint" type="free" damping="0.01"></joint>
+			<geom name="object4" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object5" pos="1.5420 0.7727 0.455">
+			<joint name="object5:joint" type="free" damping="0.01"></joint>
+			<geom name="object5" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<!-- Layer 2 (Z=0.500): angles 36,108,180,252,324 deg, r=0.055 -->
+		<body name="object6" pos="1.5695 0.8573 0.500">
+			<joint name="object6:joint" type="free" damping="0.01"></joint>
+			<geom name="object6" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object7" pos="1.5080 0.8773 0.500">
+			<joint name="object7:joint" type="free" damping="0.01"></joint>
+			<geom name="object7" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object8" pos="1.4700 0.8250 0.500">
+			<joint name="object8:joint" type="free" damping="0.01"></joint>
+			<geom name="object8" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object9" pos="1.5080 0.7727 0.500">
+			<joint name="object9:joint" type="free" damping="0.01"></joint>
+			<geom name="object9" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object10" pos="1.5695 0.7927 0.500">
+			<joint name="object10:joint" type="free" damping="0.01"></joint>
+			<geom name="object10" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+
+		<!-- Red balls (object11-object20): start above blue balls -->
+		<!-- Layer 3 (Z=0.547): angles 0,72,144,216,288 deg, r=0.055 -->
+		<body name="object11" pos="1.5800 0.8250 0.547">
+			<joint name="object11:joint" type="free" damping="0.01"></joint>
+			<geom name="object11" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object12" pos="1.5420 0.8773 0.547">
+			<joint name="object12:joint" type="free" damping="0.01"></joint>
+			<geom name="object12" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object13" pos="1.4805 0.8573 0.547">
+			<joint name="object13:joint" type="free" damping="0.01"></joint>
+			<geom name="object13" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object14" pos="1.4805 0.7927 0.547">
+			<joint name="object14:joint" type="free" damping="0.01"></joint>
+			<geom name="object14" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object15" pos="1.5420 0.7727 0.547">
+			<joint name="object15:joint" type="free" damping="0.01"></joint>
+			<geom name="object15" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<!-- Layer 4 (Z=0.592): angles 36,108,180,252,324 deg, r=0.055 -->
+		<body name="object16" pos="1.5695 0.8573 0.592">
+			<joint name="object16:joint" type="free" damping="0.01"></joint>
+			<geom name="object16" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object17" pos="1.5080 0.8773 0.592">
+			<joint name="object17:joint" type="free" damping="0.01"></joint>
+			<geom name="object17" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object18" pos="1.4700 0.8250 0.592">
+			<joint name="object18:joint" type="free" damping="0.01"></joint>
+			<geom name="object18" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object19" pos="1.5080 0.7727 0.592">
+			<joint name="object19:joint" type="free" damping="0.01"></joint>
+			<geom name="object19" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object20" pos="1.5695 0.7927 0.592">
+			<joint name="object20:joint" type="free" damping="0.01"></joint>
+			<geom name="object20" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+
+		<!-- Blue balls (object21-object30): layers 5-6 -->
+		<!-- Layer 5 (Z=0.637): angles 0,72,144,216,288 deg, r=0.055 -->
+		<body name="object21" pos="1.5800 0.8250 0.637">
+			<joint name="object21:joint" type="free" damping="0.01"></joint>
+			<geom name="object21" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object22" pos="1.5420 0.8773 0.637">
+			<joint name="object22:joint" type="free" damping="0.01"></joint>
+			<geom name="object22" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object23" pos="1.4805 0.8573 0.637">
+			<joint name="object23:joint" type="free" damping="0.01"></joint>
+			<geom name="object23" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object24" pos="1.4805 0.7927 0.637">
+			<joint name="object24:joint" type="free" damping="0.01"></joint>
+			<geom name="object24" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object25" pos="1.5420 0.7727 0.637">
+			<joint name="object25:joint" type="free" damping="0.01"></joint>
+			<geom name="object25" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<!-- Layer 6 (Z=0.682): angles 36,108,180,252,324 deg, r=0.055 -->
+		<body name="object26" pos="1.5695 0.8573 0.682">
+			<joint name="object26:joint" type="free" damping="0.01"></joint>
+			<geom name="object26" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object27" pos="1.5080 0.8773 0.682">
+			<joint name="object27:joint" type="free" damping="0.01"></joint>
+			<geom name="object27" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object28" pos="1.4700 0.8250 0.682">
+			<joint name="object28:joint" type="free" damping="0.01"></joint>
+			<geom name="object28" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object29" pos="1.5080 0.7727 0.682">
+			<joint name="object29:joint" type="free" damping="0.01"></joint>
+			<geom name="object29" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object30" pos="1.5695 0.7927 0.682">
+			<joint name="object30:joint" type="free" damping="0.01"></joint>
+			<geom name="object30" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.1 0.3 0.9 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+
+		<!-- Red balls (object31-object40): layers 7-8 -->
+		<!-- Layer 7 (Z=0.727): angles 0,72,144,216,288 deg, r=0.055 -->
+		<body name="object31" pos="1.5800 0.8250 0.727">
+			<joint name="object31:joint" type="free" damping="0.01"></joint>
+			<geom name="object31" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object32" pos="1.5420 0.8773 0.727">
+			<joint name="object32:joint" type="free" damping="0.01"></joint>
+			<geom name="object32" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object33" pos="1.4805 0.8573 0.727">
+			<joint name="object33:joint" type="free" damping="0.01"></joint>
+			<geom name="object33" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object34" pos="1.4805 0.7927 0.727">
+			<joint name="object34:joint" type="free" damping="0.01"></joint>
+			<geom name="object34" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object35" pos="1.5420 0.7727 0.727">
+			<joint name="object35:joint" type="free" damping="0.01"></joint>
+			<geom name="object35" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<!-- Layer 8 (Z=0.772): angles 36,108,180,252,324 deg, r=0.055 -->
+		<body name="object36" pos="1.5695 0.8573 0.772">
+			<joint name="object36:joint" type="free" damping="0.01"></joint>
+			<geom name="object36" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object37" pos="1.5080 0.8773 0.772">
+			<joint name="object37:joint" type="free" damping="0.01"></joint>
+			<geom name="object37" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object38" pos="1.4700 0.8250 0.772">
+			<joint name="object38:joint" type="free" damping="0.01"></joint>
+			<geom name="object38" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object39" pos="1.5080 0.7727 0.772">
+			<joint name="object39:joint" type="free" damping="0.01"></joint>
+			<geom name="object39" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+		<body name="object40" pos="1.5695 0.7927 0.772">
+			<joint name="object40:joint" type="free" damping="0.01"></joint>
+			<geom name="object40" type="sphere" size="0.020" mass="0.03"
+			      rgba="0.9 0.1 0.1 1" condim="3" contype="4" conaffinity="4" friction="0.8 0.005 0.0001"
+			      solimp="0.99 0.999 0.0001" solref="0.005 1"></geom>
+		</body>
+
+		<light directional="true" ambient="0.2 0.2 0.2" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="false" pos="0 0 4" dir="0 0 -1" name="light0"></light>
+	</worldbody>
+
+	<contact>
+		<!-- RC-1: Robot gövdeleri kase duvarlarına doğrudan temas etmemeli -->
+		<!-- Sadece top→duvar→kase zinciri kaseyi itebilir -->
+		<exclude body1="robot0:gripper_link"          body2="stir_bowl"/>
+		<exclude body1="robot0:r_gripper_finger_link" body2="stir_bowl"/>
+		<exclude body1="robot0:l_gripper_finger_link" body2="stir_bowl"/>
+		<exclude body1="robot0:wrist_roll_link"       body2="stir_bowl"/>
+		<exclude body1="robot0:wrist_flex_link"       body2="stir_bowl"/>
+		<!-- RC-2: Kaşık doğrudan kaseye değmemeli (toplar aracılığıyla etki etmeli) -->
+		<exclude body1="object0"                      body2="stir_bowl"/>
+		<!-- Spoon vs gripper: secure grip -->
+		<pair geom1="spoon_handle" geom2="robot0:r_gripper_finger_link" condim="4" friction="10 10 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="spoon_handle" geom2="robot0:l_gripper_finger_link" condim="4" friction="10 10 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="spoon_handle" geom2="robot0:gripper_link" condim="4" friction="5 5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+	</contact>
+
+	<equality>
+		<!-- Weld spoon to gripper: relpose set programmatically in _reset_sim -->
+		<weld name="spoon_grip" body1="robot0:gripper_link" body2="object0"
+		      solref="0.0005 1" solimp="0.999 0.9999 0.00001 0.5 2"/>
+	</equality>
+
+	<actuator>
+		<position ctrllimited="true" ctrlrange="0 0.2" joint="robot0:l_gripper_finger_joint" kp="200000" name="robot0:l_gripper_finger_joint" user="1"></position>
+		<position ctrllimited="true" ctrlrange="0 0.2" joint="robot0:r_gripper_finger_joint" kp="200000" name="robot0:r_gripper_finger_joint" user="1"></position>
+	</actuator>
+</mujoco>

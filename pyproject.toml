@@ -34,7 +34,6 @@ dependencies = [
     "setuptools",
     "packaging",
 ]
-dynamic = ["version"]
 
 [project.optional-dependencies]
 # Update dependencies in `all` if any are added or removed
