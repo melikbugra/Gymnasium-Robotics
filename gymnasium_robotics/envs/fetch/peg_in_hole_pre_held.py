@@ -1,5 +1,6 @@
 import os
 
+import gymnasium as gym
 import numpy as np
 from gymnasium.utils.ezpickle import EzPickle
 
@@ -52,8 +53,8 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
     information about the robot's end effector state, peg state, and goal. The dictionary
     consists of the following 3 keys:
 
-    * `observation`: its value is an `ndarray` of shape `(25,)`. It consists of kinematic
-      information of the peg object and gripper (same as FetchPegInHole):
+    * `observation`: its value is an `ndarray` of shape `(49,)`. It consists of kinematic
+      information of the peg object, gripper, and four overhead obstacle positions:
 
     | Num | Observation                                              | Min    | Max    | Unit                     |
     |-----|----------------------------------------------------------|--------|--------|--------------------------|
@@ -82,6 +83,14 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
     | 22  | End effector linear velocity z direction                 | -Inf   | Inf    | velocity (m/s)           |
     | 23  | Right gripper finger linear velocity                     | -Inf   | Inf    | velocity (m/s)           |
     | 24  | Left gripper finger linear velocity                      | -Inf   | Inf    | velocity (m/s)           |
+    | 25-27 | Right obstacle (x,y,z) absolute position              | -Inf   | Inf    | position (m)             |
+    | 28-30 | Left obstacle (x,y,z) absolute position               | -Inf   | Inf    | position (m)             |
+    | 31-33 | Front obstacle (x,y,z) absolute position              | -Inf   | Inf    | position (m)             |
+    | 34-36 | Back obstacle (x,y,z) absolute position               | -Inf   | Inf    | position (m)             |
+    | 37-39 | Right obstacle (x,y,z) relative to gripper            | -Inf   | Inf    | position (m)             |
+    | 40-42 | Left obstacle (x,y,z) relative to gripper             | -Inf   | Inf    | position (m)             |
+    | 43-45 | Front obstacle (x,y,z) relative to gripper            | -Inf   | Inf    | position (m)             |
+    | 46-48 | Back obstacle (x,y,z) relative to gripper             | -Inf   | Inf    | position (m)             |
 
     * `desired_goal`: this key represents the final goal to be achieved. In this environment
       it is a 3-dimensional `ndarray`, `(3,)`, that consists of the three cartesian coordinates
@@ -211,6 +220,37 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
             self.model, self._mujoco.mjtObj.mjOBJ_EQUALITY, "peg_grip"
         )
         assert self._weld_eq_id >= 0, "Weld constraint 'peg_grip' not found in model"
+
+        # Cache obstacle body IDs (lazy-init flag for _get_obs during super().__init__)
+        self._obstacles_initialized = False
+        self._init_obstacle_ids()
+
+        # Override observation space: 25 base + 24 obstacle (4 obs × 3 abs + 4 obs × 3 rel) = 49
+        obs_shape = 49
+        self.observation_space = gym.spaces.Dict(
+            dict(
+                desired_goal=gym.spaces.Box(
+                    -np.inf, np.inf, shape=(3,), dtype="float64"
+                ),
+                achieved_goal=gym.spaces.Box(
+                    -np.inf, np.inf, shape=(3,), dtype="float64"
+                ),
+                observation=gym.spaces.Box(
+                    -np.inf, np.inf, shape=(obs_shape,), dtype="float64"
+                ),
+            )
+        )
+
+    def _init_obstacle_ids(self):
+        """Cache obstacle body IDs from the MuJoCo model."""
+        self._obstacle_body_ids = {}
+        for name in ["obstacle_right", "obstacle_left", "obstacle_front", "obstacle_back"]:
+            bid = self._mujoco.mj_name2id(
+                self.model, self._mujoco.mjtObj.mjOBJ_BODY, name
+            )
+            assert bid >= 0, f"Body '{name}' not found"
+            self._obstacle_body_ids[name] = bid
+        self._obstacles_initialized = True
 
     def compute_reward(self, achieved_goal, goal, info):
         """Decomposed reward: lateral + depth + alignment.
@@ -375,6 +415,10 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
 
         reward = self.compute_reward(obs["achieved_goal"], self.goal, info)
 
+        # Obstacle positions in info
+        for name, bid in self._obstacle_body_ids.items():
+            info[f"{name}_pos"] = self.data.xpos[bid].copy()
+
         # Log decomposed reward components (dense mode only)
         if self.reward_type != "sparse":
             diff = obs["achieved_goal"] - self.goal
@@ -389,23 +433,48 @@ class MujocoFetchPegInHolePreHeldEnv(MujocoFetchEnv, EzPickle):
         return obs, reward, terminated, truncated, info
 
     def _get_obs(self):
-        """Override to use peg TIP position as achieved_goal, not peg center.
+        """Override to use peg TIP position as achieved_goal and add obstacle observations.
 
         The peg is 8cm tall (half-size 4cm). The peg center is positioned 2cm below
         gripper. So peg tip is 4cm below peg center = 6cm below gripper.
         This ensures the policy controls the peg tip position for precise insertion.
+
+        Observation is extended from 25D to 49D:
+        - [0:25]  base observation (gripper, peg, velocities)
+        - [25:28] obstacle_right absolute position
+        - [28:31] obstacle_left absolute position
+        - [31:34] obstacle_front absolute position
+        - [34:37] obstacle_back absolute position
+        - [37:40] obstacle_right position relative to gripper
+        - [40:43] obstacle_left position relative to gripper
+        - [43:46] obstacle_front position relative to gripper
+        - [46:49] obstacle_back position relative to gripper
         """
         # Get base observation (uses peg CENTER as achieved_goal)
         obs_dict = super()._get_obs()
 
         # Replace achieved_goal with peg TIP position instead of peg CENTER
-        # Peg center is at obs_dict["achieved_goal"]
-        # Peg tip is 4cm (0.04m) below peg center (half-height)
         peg_center = obs_dict["achieved_goal"]
         peg_tip = peg_center.copy()
         peg_tip[2] -= 0.04  # Subtract half-height to get tip position
-
         obs_dict["achieved_goal"] = peg_tip
+
+        # Obstacle positions (may not be initialized during base class __init__)
+        if getattr(self, "_obstacles_initialized", False):
+            grip_pos = obs_dict["observation"][:3]
+            abs_positions = []
+            rel_positions = []
+            for bid in self._obstacle_body_ids.values():
+                pos = self.data.xpos[bid].copy()
+                abs_positions.append(pos)
+                rel_positions.append(pos - grip_pos)
+
+            obs_dict["observation"] = np.concatenate([
+                obs_dict["observation"],  # 25D base
+                *abs_positions,           # 4 × 3D absolute
+                *rel_positions,           # 4 × 3D relative to grip
+            ])
+
         return obs_dict
 
     def _sample_goal(self):

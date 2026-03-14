@@ -60,6 +60,32 @@
 			<site name="hole_center" pos="0 0 0.035" size="0.005 0.005 0.005" rgba="1 0 0 0.5" type="sphere"></site>
 		</body>
 
+		<!-- Fixed overhead ceiling barriers (thin elongated panels above entire robot body) -->
+		<!-- Right panel (positive Y side): 90cm × 20cm × 2cm, floating at Z=1.15 -->
+		<body name="obstacle_right" pos="1.1 1.0 1.15">
+			<geom name="obstacle_right" type="box" size="0.45 0.10 0.01"
+				  rgba="0.9 0.2 0.2 0.7" mass="1000" condim="4" friction="0.5 0.5 0.5"
+				  solimp="0.99 0.999 0.0001" solref="0.002 1"/>
+		</body>
+		<!-- Left panel (negative Y side): 90cm × 20cm × 2cm, floating at Z=1.15 -->
+		<body name="obstacle_left" pos="1.1 0.55 1.15">
+			<geom name="obstacle_left" type="box" size="0.45 0.10 0.01"
+				  rgba="0.9 0.2 0.2 0.7" mass="1000" condim="4" friction="0.5 0.5 0.5"
+				  solimp="0.99 0.999 0.0001" solref="0.002 1"/>
+		</body>
+		<!-- Front vertical wall (positive Y table edge): 20cm × 2cm × 90cm, standing -->
+		<body name="obstacle_front" pos="1.225 1.10 0.70">
+			<geom name="obstacle_front" type="box" size="0.10 0.01 0.45"
+				  rgba="0.9 0.2 0.2 0.7" mass="1000" condim="4" friction="0.5 0.5 0.5"
+				  solimp="0.99 0.999 0.0001" solref="0.002 1"/>
+		</body>
+		<!-- Back vertical wall (negative Y table edge): 20cm × 2cm × 90cm, standing -->
+		<body name="obstacle_back" pos="1.225 0.40 0.70">
+			<geom name="obstacle_back" type="box" size="0.10 0.01 0.45"
+				  rgba="0.9 0.2 0.2 0.7" mass="1000" condim="4" friction="0.5 0.5 0.5"
+				  solimp="0.99 0.999 0.0001" solref="0.002 1"/>
+		</body>
+
 		<light directional="true" ambient="0.2 0.2 0.2" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="false" pos="0 0 4" dir="0 0 -1" name="light0"></light>
 	</worldbody>
 
@@ -79,6 +105,49 @@
 		<pair geom1="object0" geom2="plate_wall_left" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.00001"></pair>
 		<pair geom1="object0" geom2="plate_wall_right" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.00001"></pair>
 		<pair geom1="object0" geom2="plate_base" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.001 1" solimp="0.999 0.9999 0.00001" margin="0.00001"></pair>
+
+		<!-- Obstacle_right vs robot arm links -->
+		<pair geom1="obstacle_right" geom2="robot0:elbow_flex_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_right" geom2="robot0:forearm_roll_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_right" geom2="robot0:wrist_flex_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_right" geom2="robot0:wrist_roll_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_right" geom2="robot0:gripper_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_right" geom2="robot0:r_gripper_finger_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_right" geom2="robot0:l_gripper_finger_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_right" geom2="object0" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+
+		<!-- Obstacle_left vs robot arm links -->
+		<pair geom1="obstacle_left" geom2="robot0:elbow_flex_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_left" geom2="robot0:forearm_roll_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_left" geom2="robot0:wrist_flex_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_left" geom2="robot0:wrist_roll_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_left" geom2="robot0:gripper_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_left" geom2="robot0:r_gripper_finger_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_left" geom2="robot0:l_gripper_finger_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_left" geom2="object0" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+
+		<!-- Obstacle_front vs robot arm links -->
+		<pair geom1="obstacle_front" geom2="robot0:elbow_flex_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_front" geom2="robot0:forearm_roll_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_front" geom2="robot0:wrist_flex_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_front" geom2="robot0:wrist_roll_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_front" geom2="robot0:gripper_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_front" geom2="robot0:r_gripper_finger_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_front" geom2="robot0:l_gripper_finger_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_front" geom2="object0" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+
+		<!-- Obstacle_back vs robot arm links -->
+		<pair geom1="obstacle_back" geom2="robot0:elbow_flex_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_back" geom2="robot0:forearm_roll_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_back" geom2="robot0:wrist_flex_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_back" geom2="robot0:wrist_roll_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_back" geom2="robot0:gripper_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_back" geom2="robot0:r_gripper_finger_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_back" geom2="robot0:l_gripper_finger_link" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+		<pair geom1="obstacle_back" geom2="object0" condim="4" friction="0.5 0.5 0.005 0.0001 0.0001" solref="0.002 1" solimp="0.99 0.999 0.0001"></pair>
+
+		<!-- Note: obstacle-vs-obstacle and obstacle-vs-hole_plate contacts omitted
+		     because both are static bodies (MuJoCo disallows static-static contacts) -->
 	</contact>
 
 	<equality>
